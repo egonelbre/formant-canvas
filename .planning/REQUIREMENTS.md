@@ -129,13 +129,54 @@ Which phases cover which requirements. Filled by roadmapper.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| *(Populated during roadmap creation)* | | |
+| AUDIO-01 | Phase 1 | Pending |
+| AUDIO-02 | Phase 2 | Pending |
+| AUDIO-03 | Phase 1 | Pending |
+| AUDIO-04 | Phase 2 | Pending |
+| AUDIO-05 | Phase 2 | Pending |
+| AUDIO-06 | Phase 1 | Pending |
+| AUDIO-07 | Phase 2 | Pending |
+| AUDIO-08 | Phase 1 | Pending |
+| VOICE-01 | Phase 2 | Pending |
+| VOICE-02 | Phase 2 | Pending |
+| VOICE-03 | Phase 2 | Pending |
+| VOICE-04 | Phase 2 | Pending |
+| VOICE-05 | Phase 2 | Pending |
+| VOWEL-01 | Phase 3 | Pending |
+| VOWEL-02 | Phase 3 | Pending |
+| VOWEL-03 | Phase 3 | Pending |
+| VOWEL-04 | Phase 3 | Pending |
+| VOWEL-05 | Phase 3 | Pending |
+| PIANO-01 | Phase 3 | Pending |
+| PIANO-02 | Phase 3 | Pending |
+| PIANO-03 | Phase 3 | Pending |
+| PIANO-04 | Phase 3 | Pending |
+| PIANO-05 | Phase 3 | Pending |
+| RANGE-01 | Phase 3 | Pending |
+| RANGE-02 | Phase 3 | Pending |
+| RANGE-03 | Phase 3 | Pending |
+| STRAT-01 | Phase 4 | Pending |
+| STRAT-02 | Phase 4 | Pending |
+| STRAT-03 | Phase 4 | Pending |
+| STRAT-04 | Phase 4 | Pending |
+| STRAT-05 | Phase 4 | Pending |
+| LINK-01 | Phase 3 | Pending |
+| LINK-02 | Phase 1 | Pending |
+| LINK-03 | Phase 3 | Pending |
+| SHARE-01 | Phase 5 | Pending |
+| SHARE-02 | Phase 5 | Pending |
+| UI-01 | Phase 6 | Pending |
+| UI-02 | Phase 6 | Pending |
+| UI-03 | Phase 6 | Pending |
+| UI-04 | Phase 6 | Pending |
+| UI-05 | Phase 6 | Pending |
+| UI-06 | Phase 6 | Pending |
 
 **Coverage:**
-- v1 requirements: 43 total
-- Mapped to phases: (pending roadmap)
-- Unmapped: (pending roadmap)
+- v1 requirements: 42 total (note: initial count of 43 was off-by-one; actual total is 42 across 9 categories)
+- Mapped to phases: 42
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-11*
-*Last updated: 2026-04-11 after initial definition*
+*Last updated: 2026-04-11 — traceability populated during roadmap creation*
