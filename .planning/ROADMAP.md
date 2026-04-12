@@ -30,7 +30,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. User can move a single formant-frequency slider and the timbre audibly changes in real time with no clicks, zipper noise, or audible glitches
   3. User can refresh the page and the audio resumes cleanly on the next gesture (AudioContext lifecycle is correct)
   4. A single Svelte 5 `$state` store holds all audio parameters; the AudioBridge forwards changes via `setTargetAtTime` and no component owns its own copy of parameter state
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 01-01-PLAN.md — Scaffold project + VoiceParams store + DSP pure functions with tests
+- [ ] 01-02-PLAN.md — AudioWorklet glottal processor + AudioBridge with parallel formant chain
+- [ ] 01-03-PLAN.md — Minimal UI (play/pause, vowel slider, volume slider) + human verification
 **UI hint**: no
 
 ### Phase 2: Voice Controls & Expression
@@ -102,7 +106,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Audio Closed Loop | 0/TBD | Not started | - |
+| 1. Audio Closed Loop | 0/3 | Planning complete | - |
 | 2. Voice Controls & Expression | 0/TBD | Not started | - |
 | 3. Linked Visualizations | 0/TBD | Not started | - |
 | 4. Vocal Strategies | 0/TBD | Not started | - |
