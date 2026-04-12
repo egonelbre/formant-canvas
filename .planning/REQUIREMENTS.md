@@ -165,12 +165,12 @@ Which phases cover which requirements. Filled by roadmapper.
 | LINK-03 | Phase 3 | Pending |
 | SHARE-01 | Phase 5 | Pending |
 | SHARE-02 | Phase 5 | Pending |
-| UI-01 | Phase 6 | Pending |
-| UI-02 | Phase 6 | Pending |
-| UI-03 | Phase 6 | Pending |
-| UI-04 | Phase 6 | Pending |
-| UI-05 | Phase 6 | Pending |
-| UI-06 | Phase 6 | Pending |
+| UI-01 | Phase 5 | Pending |
+| UI-02 | Phase 5 | Pending |
+| UI-03 | Phase 5 | Pending |
+| UI-04 | Phase 5 | Pending |
+| UI-05 | Phase 5 | Pending |
+| UI-06 | Phase 5 | Pending |
 
 **Coverage:**
 - v1 requirements: 42 total (note: initial count of 43 was off-by-one; actual total is 42 across 9 categories)

@@ -40,12 +40,12 @@ created: 2026-04-12
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
 | 05-01-01 | 01 | 1 | UI-02, UI-04 | T-05-01 | N/A | unit | `npx vitest run src/lib/data/tooltips.test.ts src/lib/charts/strategy-chart-math.test.ts --reporter=verbose` | W0 (created by this task) | ⬜ pending |
 | 05-01-02 | 01 | 1 | UI-02 | T-05-02 | N/A | manual | `npx vitest run --reporter=verbose` (full suite) | — | ⬜ pending |
-| 05-02-01 | 02 | 1 | UI-04 | T-05-03 | N/A | manual | `npx vitest run --reporter=verbose` | — | ⬜ pending |
-| 05-02-02 | 02 | 1 | UI-04 | T-05-03 | N/A | manual | `npx vitest run --reporter=verbose` | — | ⬜ pending |
-| 05-03-01 | 03 | 2 | UI-01, UI-03, UI-05 | T-05-04, T-05-05 | N/A | manual | `npx vitest run --reporter=verbose` | — | ⬜ pending |
-| 05-03-02 | 03 | 2 | UI-01, UI-03 | T-05-05 | N/A | manual | `npx vitest run --reporter=verbose` | — | ⬜ pending |
-| 05-04-01 | 04 | 3 | UI-06 | T-05-06, T-05-07 | Cap pointer map to 10 | acceptance | file content checks (`touch-action: none`, `setPointerCapture`, `Map`) | — | ⬜ pending |
-| 05-04-02 | 04 | 3 | UI-01 to UI-06 | — | N/A | checkpoint | human-verify (all 5 success criteria) | — | ⬜ pending |
+| 05-02-01 | 02 | 2 | UI-04 | T-05-03 | N/A | manual | `npx vitest run --reporter=verbose` | — | ⬜ pending |
+| 05-02-02 | 02 | 2 | UI-04 | T-05-03 | N/A | manual | `npx vitest run --reporter=verbose` | — | ⬜ pending |
+| 05-03-01 | 03 | 3 | UI-01, UI-03, UI-05 | T-05-04, T-05-05 | N/A | manual | `npx vitest run --reporter=verbose` | — | ⬜ pending |
+| 05-03-02 | 03 | 3 | UI-01, UI-03 | T-05-05 | N/A | manual | `npx vitest run --reporter=verbose` | — | ⬜ pending |
+| 05-04-01 | 04 | 4 | UI-06 | T-05-06, T-05-07 | Cap pointer map to 10 | acceptance | file content checks (`touch-action: none`, `setPointerCapture`, `Map`) | — | ⬜ pending |
+| 05-04-02 | 04 | 4 | UI-01 to UI-06 | — | N/A | checkpoint | human-verify (all 5 success criteria) | — | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
