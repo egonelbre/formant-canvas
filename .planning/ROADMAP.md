@@ -70,10 +70,10 @@ Plans:
   6. User can switch voice type (male / female / child) and see the per-voice formant range overlays change on the F1/F2 chart
 **Plans:** 4 plans
 Plans:
-- [ ] 03-01-PLAN.md — TDD: Hillenbrand vowel dataset + formant bandpass magnitude response functions
-- [ ] 03-02-PLAN.md — VowelChart component (F1/F2 diagram, ellipses, drag handle, presets, overlays)
-- [ ] 03-03-PLAN.md — PianoHarmonics component (5-octave piano, harmonic bars, formant curves, click-to-tune)
-- [ ] 03-04-PLAN.md — App integration (layout, wiring, CSS tokens) + human verification of linked updates
+- [x] 03-01-PLAN.md — TDD: Hillenbrand vowel dataset + formant bandpass magnitude response functions
+- [x] 03-02-PLAN.md — VowelChart component (F1/F2 diagram, ellipses, drag handle, presets, overlays)
+- [x] 03-03-PLAN.md — PianoHarmonics component (5-octave piano, harmonic bars, formant curves, click-to-tune)
+- [x] 03-04-PLAN.md — App integration (layout, wiring, CSS tokens) + human verification of linked updates
 **UI hint**: yes
 
 ### Phase 4: Vocal Strategies
