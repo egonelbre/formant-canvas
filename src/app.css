@@ -45,13 +45,12 @@
   display: grid;
   height: 100dvh;
   height: 100vh;
-  grid-template-rows: auto 1fr 1fr 3cm;
+  grid-template-rows: auto 1fr 3cm;
   grid-template-columns: 1fr 40%;
   grid-template-areas:
     "header  header"
     "panels  right"
-    "panels  right"
-    "piano   right";
+    "piano   piano";
   gap: 0;
   overflow: hidden;
 }
