@@ -109,7 +109,9 @@
     formants: 'Resonance bandwidths control how sharp or broad each formant peak is. Narrower bandwidth = more prominent resonance.',
     phonation: 'How the vocal folds vibrate. Modal is normal speech. Breathy adds air noise. Pressed is tight/strained. Expert mode shows Open Quotient, Spectral Tilt, and Aspiration.',
     strategy: 'Vocal strategy determines how formant resonances track pitch harmonics. Singers tune R1/R2 to align with harmonics for projection. Auto selects strategies based on voice type and pitch.',
-    charts: 'Vowel space: R1 (openness) vs R2 (frontness). Drag the dot to change timbre, click IPA symbols to snap. Data: Hillenbrand et al. (1995). Below: Sundberg resonance strategy charts showing formant-harmonic relationships.',
+    vowelChart: 'Vowel space: R1 (openness) vs R2 (frontness). Drag the dot to change timbre, click IPA symbols to snap. Data: Hillenbrand et al. (1995).',
+    r1Chart: 'R1 (First Resonance) strategy chart. Diagonal lines show harmonics of f₀. When a strategy is active, the formant tracks the selected harmonic. Shaded region shows typical R1 range for the voice type.',
+    r2Chart: 'R2 (Second Resonance) strategy chart. Higher harmonics (2f₀, 3f₀) shown as diagonals. Shaded region shows typical R2 range for the voice type.',
   };
 </script>
 
@@ -175,11 +177,12 @@
 
   <!-- RIGHT: vowel chart + resonance charts stacked -->
   <div class="app-right">
-    <RegionHelp text={HELP.charts} />
     <div class="right-vowel">
+      <RegionHelp text={HELP.vowelChart} />
       <VowelChart {expertMode} />
     </div>
     <div class="right-chart">
+      <RegionHelp text={HELP.r2Chart} />
       <R2StrategyChart
         f0={voiceParams.f0}
         f2Freq={voiceParams.f2Freq}
@@ -189,6 +192,7 @@
       />
     </div>
     <div class="right-chart">
+      <RegionHelp text={HELP.r1Chart} />
       <R1StrategyChart
         f0={voiceParams.f0}
         f1Freq={voiceParams.f1Freq}
@@ -279,6 +283,7 @@
     border-left: 1px solid var(--color-border);
   }
   .right-vowel {
+    position: relative;
     grid-area: vowels;
     overflow: hidden;
     display: flex;
@@ -287,6 +292,7 @@
     min-height: 0;
   }
   .right-chart {
+    position: relative;
     overflow: hidden;
     display: flex;
     align-items: center;
