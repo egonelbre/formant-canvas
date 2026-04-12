@@ -46,6 +46,7 @@
         height: barHeight,
         fill: h.n === 1 ? '#2563eb' : '#333333',
         opacity: h.n === 1 ? 1.0 : 0.8,
+        showLabel: false,
       };
     });
 
@@ -54,14 +55,12 @@
     let lastLabelX = -Infinity;
     for (const bar of bars) {
       if (bar.centerX - lastLabelX >= MIN_LABEL_GAP) {
-        (bar as any).showLabel = true;
+        bar.showLabel = true;
         lastLabelX = bar.centerX;
-      } else {
-        (bar as any).showLabel = false;
       }
     }
 
-    return bars as (typeof bars[number] & { showLabel: boolean })[];
+    return bars;
   });
 </script>
 
