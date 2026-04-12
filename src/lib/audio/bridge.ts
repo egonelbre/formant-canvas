@@ -6,7 +6,7 @@ import { voiceParams } from './state.svelte.ts';
  *
  * Responsibilities:
  * - Creates AudioContext and loads the glottal worklet processor
- * - Builds a parallel formant filter chain (4 BiquadFilterNodes, D-08)
+ * - Builds a parallel formant filter chain (5 BiquadFilterNodes, D-08, D-13)
  * - Forwards all parameter changes via setTargetAtTime (AUDIO-06, no zipper noise)
  * - Handles AudioContext resume on user gesture (AUDIO-08, D-06)
  * - Start/stop playback control
@@ -59,6 +59,7 @@ export class AudioBridge {
    *                      +--> BiquadF2 --> GainF2 --+--> SumGain --> MasterGain --> destination
    *                      +--> BiquadF3 --> GainF3 --+
    *                      +--> BiquadF4 --> GainF4 --+
+   *                      +--> BiquadF5 --> GainF5 --+
    */
   private buildFormantChain(): void {
     if (!this.ctx || !this.workletNode) return;
@@ -81,12 +82,13 @@ export class AudioBridge {
       { freq: voiceParams.f2Freq, bw: voiceParams.f2BW, gain: voiceParams.f2Gain },
       { freq: voiceParams.f3Freq, bw: voiceParams.f3BW, gain: voiceParams.f3Gain },
       { freq: voiceParams.f4Freq, bw: voiceParams.f4BW, gain: voiceParams.f4Gain },
+      { freq: voiceParams.f5Freq, bw: voiceParams.f5BW, gain: voiceParams.f5Gain },
     ];
 
     this.formants = [];
     this.formantGains = [];
 
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 5; i++) {
       const { freq, bw, gain } = formantDefaults[i];
 
       // Create bandpass filter for this formant
@@ -127,15 +129,16 @@ export class AudioBridge {
 
     const now = this.ctx.currentTime;
 
-    // Forward formant parameters (F1-F4) via setTargetAtTime
+    // Forward formant parameters (F1-F5) via setTargetAtTime
     const formantData = [
       { freq: voiceParams.f1Freq, bw: voiceParams.f1BW, gain: voiceParams.f1Gain },
       { freq: voiceParams.f2Freq, bw: voiceParams.f2BW, gain: voiceParams.f2Gain },
       { freq: voiceParams.f3Freq, bw: voiceParams.f3BW, gain: voiceParams.f3Gain },
       { freq: voiceParams.f4Freq, bw: voiceParams.f4BW, gain: voiceParams.f4Gain },
+      { freq: voiceParams.f5Freq, bw: voiceParams.f5BW, gain: voiceParams.f5Gain },
     ];
 
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 5; i++) {
       const { freq, bw, gain } = formantData[i];
       this.formants[i].frequency.setTargetAtTime(freq, now, 0.02);
       this.formants[i].Q.setTargetAtTime(bandwidthToQ(freq, bw), now, 0.02);
