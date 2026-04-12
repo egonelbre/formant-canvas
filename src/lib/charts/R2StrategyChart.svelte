@@ -14,8 +14,6 @@
     r2Strategy: string | null;
     strategyMode: string;
     voicePreset: string | null;
-    width?: number;
-    height?: number;
   }
 
   let {
@@ -24,9 +22,11 @@
     r2Strategy,
     strategyMode,
     voicePreset,
-    width = 280,
-    height = 180,
   }: Props = $props();
+
+  let containerEl: HTMLDivElement | undefined = $state();
+  let width = $state(280);
+  let height = $state(180);
 
   // Margins
   const marginLeft = 45;
@@ -113,11 +113,12 @@
   let f2Y = $derived(Math.max(0, Math.min(plotHeight, yScale(f2Freq))));
 </script>
 
+<div class="chart-container" bind:this={containerEl} bind:clientWidth={width} bind:clientHeight={height}>
 <svg
-  width="100%"
-  height="100%"
+  {width}
+  {height}
   viewBox="0 0 {width} {height}"
-  preserveAspectRatio="none"
+  preserveAspectRatio="xMidYMid meet"
   role="img"
   aria-label="R2 strategy chart showing second resonance frequency vs pitch"
 >
@@ -256,3 +257,12 @@
     {/if}
   </g>
 </svg>
+</div>
+
+<style>
+  .chart-container {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+</style>
