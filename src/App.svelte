@@ -15,7 +15,7 @@
   import R2StrategyChart from './lib/charts/R2StrategyChart.svelte';
   import VibratoVisual from './lib/components/VibratoVisual.svelte';
   import LabeledSlider from './lib/components/LabeledSlider.svelte';
-  import RegionHelp from './lib/components/RegionHelp.svelte';
+  import HelpDialog from './lib/components/HelpDialog.svelte';
   import AboutDialog from './lib/components/AboutDialog.svelte';
   import { computeTargets } from './lib/strategies/engine.ts';
   import { pickStrategy } from './lib/strategies/auto-strategy.ts';
@@ -110,16 +110,6 @@
     }
   }
 
-  const HELP = {
-    pitch: 'Fundamental frequency (pitch) of the voice. Vibrato adds periodic pitch variation. Use the piano keyboard or QWERTY keys to change pitch.',
-    formants: 'Resonance bandwidths control how sharp or broad each formant peak is. Narrower bandwidth = more prominent resonance.',
-    phonation: 'How the vocal folds vibrate. Modal is normal speech. Breathy adds air noise. Pressed is tight/strained. Expert mode shows Open Quotient, Spectral Tilt, and Aspiration.',
-    strategy: 'Vocal strategy determines how formant resonances track pitch harmonics. Singers tune R1/R2 to align with harmonics for projection. Auto selects strategies based on voice type and pitch.',
-    vowelChart: 'Vowel space: R1 (openness) vs R2 (frontness). Drag the dot to change timbre, click IPA symbols to snap. Data: Hillenbrand et al. (1995).',
-    r1Chart: 'R1 (First Resonance) strategy chart. Diagonal lines show harmonics of f₀. When a strategy is active, the formant tracks the selected harmonic. Shaded region shows typical R1 range for the voice type.',
-    r2Chart: 'R2 (Second Resonance) strategy chart. Higher harmonics (2f₀, 3f₀) shown as diagonals. Shaded region shows typical R2 range for the voice type.',
-  };
-
   function toggleFullscreen() {
     if (document.fullscreenElement) {
       document.exitFullscreen();
@@ -151,13 +141,57 @@
   <!-- PANELS: horizontal control strip -->
   <div class="panels">
     <div class="panel-col">
-      <RegionHelp text={HELP.pitch} />
+      <HelpDialog title="Pitch and Vibrato">
+        <p>
+          <strong>Fundamental frequency (f0)</strong> is the rate at which the vocal folds vibrate,
+          measured in Hertz. A higher f0 means a higher perceived pitch. Adult male voices typically
+          range from about 85 to 180 Hz, while adult female voices range from about 165 to 255 Hz.
+        </p>
+        <p>
+          You can change the pitch using the piano keyboard at the bottom of the screen, or by
+          pressing the QWERTY keys on your computer keyboard (mapped like a piano).
+        </p>
+        <h2>Vibrato</h2>
+        <p>
+          Vibrato is a periodic variation in pitch used by singers to add warmth, projection,
+          and expressiveness to sustained notes. The <strong>rate</strong> parameter controls how fast
+          the pitch oscillates (typically 5--7 Hz in classical singing), while <strong>extent</strong>
+          controls how wide the pitch swings (usually about a semitone).
+        </p>
+        <p>
+          Changing pitch affects which harmonics fall near which formant resonances. This is why
+          the same vowel can sound different at different pitches -- the harmonic-formant alignment
+          shifts, changing which harmonics get amplified.
+        </p>
+      </HelpDialog>
       <PitchSection {expertMode} />
       <ExpressionControls {expertMode} />
       <VibratoVisual rate={voiceParams.vibratoRate} extent={voiceParams.vibratoExtent} />
       {#if expertMode}
         <div class="expert-formant-bw">
-          <RegionHelp text={HELP.formants} />
+          <HelpDialog title="Formant Bandwidths">
+            <p>
+              <strong>Formants</strong> are resonance peaks created by the vocal tract -- the tube-shaped
+              airway from the vocal folds to the lips. Each formant is characterized by its
+              <strong>frequency</strong> (where the peak is) and its <strong>bandwidth</strong> (how
+              wide the peak is).
+            </p>
+            <p>
+              Bandwidth controls how sharp or broad each resonance peak is. A <strong>narrow
+              bandwidth</strong> creates a prominent, ringing resonance that strongly amplifies
+              harmonics near it. A <strong>wide bandwidth</strong> creates a subtle, damped resonance
+              with less effect on the spectrum.
+            </p>
+            <p>
+              R1 through R4 correspond to the first four resonances of the vocal tract. R1 and R2
+              primarily determine vowel quality, while R3--R5 contribute to voice timbre and the
+              singer's formant cluster.
+            </p>
+            <p>
+              Trained singers tend to have narrower bandwidths than untrained speakers, which
+              contributes to the characteristic "ring" or "ping" of a well-produced singing voice.
+            </p>
+          </HelpDialog>
           <h2 class="section-heading">Formants</h2>
           <div class="formant-readouts">
             <span class="readout">R1: {Math.round(voiceParams.f1Freq)} Hz</span>
@@ -179,11 +213,59 @@
       {/if}
     </div>
     <div class="panel-col">
-      <RegionHelp text={HELP.phonation} />
+      <HelpDialog title="Phonation Type">
+        <p>
+          <strong>Phonation</strong> describes how the vocal folds vibrate -- the voice source
+          before it gets filtered by the vocal tract. Different phonation types produce different
+          harmonic spectra, which changes the raw material that formants then shape.
+        </p>
+        <h2>Types</h2>
+        <ul>
+          <li><strong>Modal:</strong> Normal, efficient vocal fold vibration used in regular speech
+          and most singing. The folds close completely during each cycle, producing a rich harmonic
+          spectrum.</li>
+          <li><strong>Breathy:</strong> The vocal folds don't close completely, letting turbulent air
+          through. This adds noise to the signal and weakens higher harmonics, creating an airy,
+          intimate quality used in soft speech and some popular singing styles.</li>
+          <li><strong>Pressed:</strong> The vocal folds press tightly together with high medial
+          compression. This produces a strained, intense quality with strong higher harmonics, used
+          for emphasis or emotional intensity.</li>
+        </ul>
+        <h2>Expert parameters</h2>
+        <p>
+          In expert mode, you can fine-tune the source signal: <strong>Open Quotient</strong> controls
+          what fraction of each glottal cycle the folds are open; <strong>Spectral Tilt</strong>
+          controls how quickly harmonics decrease in amplitude; and <strong>Aspiration</strong> adds
+          turbulent noise to the signal.
+        </p>
+      </HelpDialog>
       <PhonationMode {expertMode} />
     </div>
     <div class="panel-col">
-      <RegionHelp text={HELP.strategy} />
+      <HelpDialog title="Vocal Strategy">
+        <p>
+          Trained singers systematically tune their vocal tract resonances to align with harmonics
+          of their fundamental frequency. This alignment -- called <strong>resonance tracking</strong>
+          or <strong>formant tuning</strong> -- dramatically increases vocal power and projection
+          without requiring extra muscular effort from the vocal folds.
+        </p>
+        <p>
+          Different strategies describe which harmonic a resonance tracks. For example,
+          <strong>R1:2f0</strong> means the first resonance tracks the second harmonic, while
+          <strong>R2:3f0</strong> means the second resonance tracks the third harmonic. The notation
+          tells you which resonance (R1 or R2) is tuned to which multiple of f0.
+        </p>
+        <p>
+          <strong>Auto mode</strong> selects strategies based on voice type and current pitch range,
+          mimicking what trained singers do naturally. Sopranos use different strategies than basses
+          because their pitch ranges interact with formant regions differently.
+        </p>
+        <p>
+          This is the core concept from Kenneth Bozeman's vocal acoustics pedagogy: understanding
+          resonance-harmonic relationships is key to efficient, powerful singing across the full
+          range.
+        </p>
+      </HelpDialog>
       <StrategyPanel section="all" />
     </div>
   </div>
@@ -196,11 +278,50 @@
   <!-- RIGHT: vowel chart + resonance charts stacked -->
   <div class="app-right">
     <div class="right-vowel">
-      <RegionHelp text={HELP.vowelChart} />
+      <HelpDialog title="Vowel Chart (F1/F2 Space)">
+        <p>
+          The vowel chart maps the two most important formant frequencies: <strong>R1</strong>
+          (first resonance, vertical axis) corresponds to jaw openness, and <strong>R2</strong>
+          (second resonance, horizontal axis) corresponds to tongue frontness/backness. This maps
+          directly to the IPA vowel quadrilateral used in phonetics.
+        </p>
+        <p>
+          Open vowels like "ah" appear at the bottom of the chart (high R1 frequency), while closed
+          vowels like "ee" appear at the top (low R1). Front vowels like "ee" appear on the left
+          (high R2), while back vowels like "oo" appear on the right (low R2).
+        </p>
+        <p>
+          <strong>Drag the dot</strong> to change the vowel continuously, or <strong>click IPA
+          symbols</strong> to snap to standard vowel positions. The data points shown are from
+          Hillenbrand et al. (1995), a large-scale acoustic study of American English vowels.
+        </p>
+        <p>
+          The connection between tongue position and formant frequency is the foundation of acoustic
+          phonetics. Moving your tongue forward raises R2; opening your jaw raises R1. Every vowel
+          in every language can be located in this two-dimensional space.
+        </p>
+      </HelpDialog>
       <VowelChart {expertMode} />
     </div>
     <div class="right-chart right-r2">
-      <RegionHelp text={HELP.r2Chart} />
+      <HelpDialog title="R2 Strategy Chart">
+        <p>
+          This chart shows the <strong>second resonance (R2)</strong> frequency on the vertical axis
+          versus fundamental frequency (f0) on the horizontal axis. Diagonal lines represent
+          harmonics of f0 -- the 2nd, 3rd, 4th harmonic, and so on.
+        </p>
+        <p>
+          When R2 aligns with a harmonic (sits on a diagonal line), the voice gains significant
+          energy at that frequency. R2 strategies are particularly important for <strong>tenors</strong>
+          and for producing the <strong>singer's formant cluster</strong> -- the concentration of
+          energy around 2500--3500 Hz that lets a trained voice project over an orchestra.
+        </p>
+        <p>
+          The <strong>shaded region</strong> shows the typical R2 range for the selected voice type.
+          Different voice types have different R2 ranges because of differences in vocal tract length
+          and shape.
+        </p>
+      </HelpDialog>
       <R2StrategyChart
         f0={voiceParams.f0}
         f2Freq={voiceParams.f2Freq}
@@ -210,7 +331,26 @@
       />
     </div>
     <div class="right-chart right-r1">
-      <RegionHelp text={HELP.r1Chart} />
+      <HelpDialog title="R1 Strategy Chart">
+        <p>
+          This chart shows the <strong>first resonance (R1)</strong> frequency on the vertical axis
+          versus fundamental frequency (f0) on the horizontal axis. Diagonal lines represent
+          harmonics of f0 (1x, 2x, etc.).
+        </p>
+        <p>
+          When a resonance "rides" a harmonic -- staying on or near a diagonal line as pitch
+          changes -- the voice gains significant power at that frequency. This is the essence of
+          resonance tracking: the singer adjusts their vocal tract to keep a formant aligned with
+          a specific harmonic.
+        </p>
+        <p>
+          The <strong>shaded region</strong> shows the typical R1 range for the selected voice type.
+          Sopranos often tune R1 above the first harmonic (<strong>R1:f0</strong> or
+          <strong>R1:2f0</strong>) in their upper range -- this is the acoustic basis of
+          <strong>vowel modification</strong>, where singers subtly change their vowel to maintain
+          resonance alignment at high pitches.
+        </p>
+      </HelpDialog>
       <R1StrategyChart
         f0={voiceParams.f0}
         f1Freq={voiceParams.f1Freq}
