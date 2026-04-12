@@ -25,6 +25,7 @@
   }
 
   function selectMode(mode: StrategyMode) {
+    voiceParams.autoStrategy = false;
     voiceParams.strategyMode = mode;
   }
 
@@ -37,16 +38,12 @@
   }
 
   function selectAuto() {
-    voiceParams.autoStrategy = !voiceParams.autoStrategy;
-    if (voiceParams.autoStrategy) {
-      const rec = pickStrategy(voiceParams.f0, voiceParams.voicePreset ?? 'baritone');
-      voiceParams.r1Strategy = rec.r1;
-      voiceParams.r2Strategy = rec.r2;
-      voiceParams.singerFormant = rec.singerFormant;
-      if (voiceParams.strategyMode === 'off') {
-        voiceParams.strategyMode = 'overlay';
-      }
-    }
+    voiceParams.autoStrategy = true;
+    voiceParams.strategyMode = 'locked';
+    const rec = pickStrategy(voiceParams.f0, voiceParams.voicePreset ?? 'baritone');
+    voiceParams.r1Strategy = rec.r1;
+    voiceParams.r2Strategy = rec.r2;
+    voiceParams.singerFormant = rec.singerFormant;
   }
 
   let isSpeech = $derived(
@@ -64,17 +61,17 @@
       <button class="option" class:active={isSpeech} onclick={selectSpeech}>
         Speech
       </button>
-      <button class="option" class:active={voiceParams.autoStrategy} onclick={selectAuto}>
-        Auto
-      </button>
       <button class="option" class:active={voiceParams.strategyMode === 'off' && !isSpeech && !voiceParams.autoStrategy} onclick={() => selectMode('off')}>
         Off
       </button>
-      <button class="option" class:active={voiceParams.strategyMode === 'overlay'} onclick={() => selectMode('overlay')}>
+      <button class="option" class:active={voiceParams.strategyMode === 'overlay' && !voiceParams.autoStrategy} onclick={() => selectMode('overlay')}>
         Overlay
       </button>
-      <button class="option" class:active={voiceParams.strategyMode === 'locked'} onclick={() => selectMode('locked')}>
+      <button class="option" class:active={voiceParams.strategyMode === 'locked' && !voiceParams.autoStrategy} onclick={() => selectMode('locked')}>
         Locked
+      </button>
+      <button class="option" class:active={voiceParams.autoStrategy} onclick={selectAuto}>
+        Auto
       </button>
     </div>
   {/if}
