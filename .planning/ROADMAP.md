@@ -47,7 +47,14 @@ Plans:
   3. User can switch between breathy, modal, flow, and pressed phonation with plain-language labels and hear the glottal source change accordingly
   4. User can load voice-type presets (tenor, baritone, bass, soprano, mezzo, alto, child) and hear the f₀ range and starting formants load together
   5. Play, stop, master volume, and mute respond instantly from any UI state
-**Plans**: TBD
+**Plans:** 6 plans
+Plans:
+- [ ] 02-01-PLAN.md — TDD: DSP pure functions (vibrato, jitter, spectral tilt, pitch utils)
+- [ ] 02-02-PLAN.md — VoiceParams store extension + data modules (voice presets, phonation presets, QWERTY map)
+- [ ] 02-03-PLAN.md — Extend worklet (vibrato LFO, jitter, spectral tilt) + bridge (new params, mute)
+- [ ] 02-04-PLAN.md — UI components (transport, pitch/piano, voice presets, phonation, expression)
+- [ ] 02-05-PLAN.md — App.svelte rewrite + QWERTY keyboard handler + CSS design tokens
+- [ ] 02-06-PLAN.md — Human verification of complete Phase 2 interface
 **UI hint**: yes
 
 ### Phase 3: Linked Visualizations (Piano + F1/F2)
@@ -106,8 +113,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Audio Closed Loop | 0/3 | Planning complete | - |
-| 2. Voice Controls & Expression | 0/TBD | Not started | - |
+| 1. Audio Closed Loop | 3/3 | Complete | 2026-04-12 |
+| 2. Voice Controls & Expression | 0/6 | Planning complete | - |
 | 3. Linked Visualizations | 0/TBD | Not started | - |
 | 4. Vocal Strategies | 0/TBD | Not started | - |
 | 5. Presets, Sharing, Undo/Redo | 0/TBD | Not started | - |
