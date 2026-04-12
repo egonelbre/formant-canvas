@@ -4,11 +4,12 @@
   import HarmonicBars from './HarmonicBars.svelte';
   import FormantCurves from './FormantCurves.svelte';
 
-  // Piano range: C2 (MIDI 36) to B6 (MIDI 83) = 5 octaves
+  // Piano range: C2 (MIDI 36) to B8 (MIDI 107) — extends to ~5kHz
+  // so F2-F4 formant markers are visible on the keyboard
   const START_MIDI = 36;
-  const END_MIDI = 83;
+  const END_MIDI = 107;
 
-  // Layout constants (per UI-SPEC Section 2)
+  // Layout constants
   const WHITE_KEY_WIDTH = 14;
   const WHITE_KEY_HEIGHT = 120;
   const BLACK_KEY_WIDTH = 9;
@@ -77,41 +78,55 @@
     return centers;
   });
 
+  // Pixels per semitone
+  let pxPerSemitone = $derived(svgWidth / (END_MIDI - START_MIDI));
+
   /**
    * Convert a frequency in Hz to SVG x coordinate.
-   * Maps via MIDI float, linearly interpolating between key centers.
+   * Maps via MIDI float, interpolating between key centers.
    */
   function freqToX(freq: number): number {
     const midiFloat = 69 + 12 * Math.log2(freq / 440);
-    const midiLow = Math.floor(midiFloat);
-    const midiHigh = midiLow + 1;
-    const frac = midiFloat - midiLow;
 
-    const centers = midiCenterX;
-    const xLow = centers.get(midiLow);
-    const xHigh = centers.get(midiHigh);
+    if (midiFloat >= START_MIDI && midiFloat <= END_MIDI) {
+      const midiLow = Math.floor(midiFloat);
+      const midiHigh = midiLow + 1;
+      const frac = midiFloat - midiLow;
 
-    if (xLow !== undefined && xHigh !== undefined) {
-      return xLow + frac * (xHigh - xLow);
+      const centers = midiCenterX;
+      const xLow = centers.get(midiLow);
+      const xHigh = centers.get(midiHigh);
+
+      if (xLow !== undefined && xHigh !== undefined) {
+        return xLow + frac * (xHigh - xLow);
+      }
+      if (xLow !== undefined) return xLow;
+      if (xHigh !== undefined) return xHigh;
     }
-    if (xLow !== undefined) return xLow;
-    if (xHigh !== undefined) return xHigh;
 
-    // Extrapolate for out-of-range values
-    // Use linear scale: each semitone spans roughly WHITE_KEY_WIDTH * 7/12
-    const semitonePx = (svgWidth / (END_MIDI - START_MIDI));
-    return (midiFloat - START_MIDI) * semitonePx;
+    // Fallback: linear semitone scale
+    return (midiFloat - START_MIDI) * pxPerSemitone;
+  }
+
+  /**
+   * Convert SVG x coordinate back to frequency in Hz.
+   */
+  function xToFreq(x: number): number {
+    const midiFloat = START_MIDI + x / pxPerSemitone;
+    return 440 * Math.pow(2, (midiFloat - 69) / 12);
   }
 
   // Current f0 highlighted key
   let highlightMidi = $derived(Math.round(69 + 12 * Math.log2(voiceParams.f0 / 440)));
 
-  // C-labels for C2 (36), C3 (48), C4 (60), C5 (72)
+  // C-labels
   const C_LABELS = [
     { midi: 36, label: 'C2' },
     { midi: 48, label: 'C3' },
     { midi: 60, label: 'C4' },
     { midi: 72, label: 'C5' },
+    { midi: 84, label: 'C6' },
+    { midi: 96, label: 'C7' },
   ];
 
   function getWhiteKeyFill(midi: number): string {
@@ -124,21 +139,50 @@
     return '#27272a';
   }
 
-  // Pointer drag support: click or drag across keys to set pitch
-  let dragging = $state(false);
+  // --- Pointer interaction ---
+  // Two modes: dragging on piano keys sets f0, dragging on harmonic region moves formants
+  type DragMode = 'none' | 'piano' | 'formant';
+  let dragMode = $state<DragMode>('none');
+  let dragFormantIndex = $state(-1); // which formant (0-3) is being dragged
   let svgEl: SVGSVGElement | undefined = $state();
 
-  function midiFromPointer(e: PointerEvent): number | null {
+  const FORMANT_FREQ_KEYS: ('f1Freq' | 'f2Freq' | 'f3Freq' | 'f4Freq')[] = ['f1Freq', 'f2Freq', 'f3Freq', 'f4Freq'];
+  const FORMANT_COLORS = ['#f97316', '#22c55e', '#3b82f6', '#a855f7'];
+
+  // Typical frequency ranges for each formant in speech
+  const FORMANT_RANGES: { min: number; max: number }[] = [
+    { min: 200, max: 1000 },   // F1
+    { min: 600, max: 3000 },   // F2
+    { min: 1500, max: 3500 },  // F3
+    { min: 2500, max: 5000 },  // F4
+  ];
+
+  function pointerToSvg(e: PointerEvent): { svgX: number; svgY: number } | null {
     if (!svgEl) return null;
     const rect = svgEl.getBoundingClientRect();
     const xRatio = (e.clientX - rect.left) / rect.width;
     const yRatio = (e.clientY - rect.top) / rect.height;
-    const svgX = xRatio * svgWidth;
-    const svgY = yRatio * SVG_HEIGHT;
+    return { svgX: xRatio * svgWidth, svgY: yRatio * SVG_HEIGHT };
+  }
 
-    // Only respond to clicks in the piano key region (y >= 80)
+  function findNearestFormant(svgX: number): number {
+    const freq = xToFreq(svgX);
+    let bestIdx = 0;
+    let bestDist = Infinity;
+    const formants = voiceParams.formants;
+    for (let i = 0; i < formants.length; i++) {
+      // Compare in log-frequency space for perceptually uniform distance
+      const dist = Math.abs(Math.log2(freq) - Math.log2(formants[i].freq));
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestIdx = i;
+      }
+    }
+    return bestIdx;
+  }
+
+  function midiFromSvgX(svgX: number, svgY: number): number | null {
     if (svgY < HARMONIC_REGION_HEIGHT) return null;
-
     const keyY = svgY - HARMONIC_REGION_HEIGHT;
 
     // Check black keys first (they're on top)
@@ -160,21 +204,43 @@
 
   function onPointerDown(e: PointerEvent) {
     e.preventDefault();
-    dragging = true;
+    const pos = pointerToSvg(e);
+    if (!pos) return;
     svgEl?.setPointerCapture(e.pointerId);
-    const midi = midiFromPointer(e);
-    if (midi !== null) voiceParams.f0 = midiToHz(midi);
+
+    if (pos.svgY < HARMONIC_REGION_HEIGHT) {
+      // Clicking in harmonic region — start formant drag
+      dragMode = 'formant';
+      dragFormantIndex = findNearestFormant(pos.svgX);
+      const freq = xToFreq(pos.svgX);
+      voiceParams[FORMANT_FREQ_KEYS[dragFormantIndex]] = Math.round(freq);
+    } else {
+      // Clicking on piano keys — set f0
+      dragMode = 'piano';
+      const midi = midiFromSvgX(pos.svgX, pos.svgY);
+      if (midi !== null) voiceParams.f0 = midiToHz(midi);
+    }
   }
 
   function onPointerMove(e: PointerEvent) {
-    if (!dragging) return;
+    if (dragMode === 'none') return;
     e.preventDefault();
-    const midi = midiFromPointer(e);
-    if (midi !== null) voiceParams.f0 = midiToHz(midi);
+    const pos = pointerToSvg(e);
+    if (!pos) return;
+
+    if (dragMode === 'formant') {
+      const freq = xToFreq(pos.svgX);
+      const clamped = Math.max(100, Math.min(5000, Math.round(freq)));
+      voiceParams[FORMANT_FREQ_KEYS[dragFormantIndex]] = clamped;
+    } else if (dragMode === 'piano') {
+      const midi = midiFromSvgX(pos.svgX, pos.svgY);
+      if (midi !== null) voiceParams.f0 = midiToHz(midi);
+    }
   }
 
   function onPointerUp(e: PointerEvent) {
-    dragging = false;
+    dragMode = 'none';
+    dragFormantIndex = -1;
     svgEl?.releasePointerCapture(e.pointerId);
   }
 </script>
@@ -188,7 +254,7 @@
     preserveAspectRatio="xMidYMid meet"
     role="group"
     aria-label="Piano keyboard with harmonics"
-    style="touch-action: none;"
+    style="touch-action: none; cursor: {dragMode === 'formant' ? 'ew-resize' : 'default'};"
     onpointerdown={onPointerDown}
     onpointermove={onPointerMove}
     onpointerup={onPointerUp}
@@ -199,6 +265,41 @@
 
     <!-- Formant curves region (0-80px, on top of bars) -->
     <FormantCurves {freqToX} curveRegionHeight={BAR_REGION_HEIGHT} />
+
+    <!-- Formant range band (shown during formant drag) -->
+    {#if dragMode === 'formant' && dragFormantIndex >= 0}
+      {@const range = FORMANT_RANGES[dragFormantIndex]}
+      {@const color = FORMANT_COLORS[dragFormantIndex]}
+      <rect
+        x={freqToX(range.min)}
+        y={0}
+        width={freqToX(range.max) - freqToX(range.min)}
+        height={SVG_HEIGHT}
+        fill={color}
+        opacity="0.08"
+        pointer-events="none"
+      />
+      <line
+        x1={freqToX(range.min)} y1={0}
+        x2={freqToX(range.min)} y2={SVG_HEIGHT}
+        stroke={color} stroke-width="1" opacity="0.3" pointer-events="none"
+      />
+      <line
+        x1={freqToX(range.max)} y1={0}
+        x2={freqToX(range.max)} y2={SVG_HEIGHT}
+        stroke={color} stroke-width="1" opacity="0.3" pointer-events="none"
+      />
+    {/if}
+
+    <!-- Invisible hit area for formant dragging in harmonic region -->
+    <rect
+      x={0}
+      y={0}
+      width={svgWidth}
+      height={HARMONIC_REGION_HEIGHT}
+      fill="transparent"
+      style="cursor: ew-resize;"
+    />
 
     <!-- White keys (bottom 120px, starting at y=80) -->
     {#each whiteKeys as key (key.midi)}

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { scaleLog } from 'd3-scale';
-  import { HILLENBRAND_VOWELS, getActiveVowelRegion } from '../data/hillenbrand.ts';
+  import { HILLENBRAND_VOWELS, getActiveVowelRegion, interpolateHigherFormants } from '../data/hillenbrand.ts';
   import type { SpeakerGroup, HillenbrandVowel } from '../data/hillenbrand.ts';
   import { voiceParams } from '../audio/state.svelte.ts';
   import ChipGroup from './ChipGroup.svelte';
@@ -79,6 +79,10 @@
     if (!result) return;
     voiceParams.f1Freq = result.f1;
     voiceParams.f2Freq = result.f2;
+    // Interpolate F3/F4 from nearest Hillenbrand vowels
+    const higher = interpolateHigherFormants(result.f1, result.f2, currentGroup);
+    voiceParams.f3Freq = higher.f3;
+    voiceParams.f4Freq = higher.f4;
   }
 
   // Drag handlers (pointer-capture, same pattern as PianoKeyboard)
@@ -106,7 +110,7 @@
     voiceParams.f1Freq = data.f1;
     voiceParams.f2Freq = data.f2;
     voiceParams.f3Freq = data.f3;
-    // F4 stays at current value (Hillenbrand has no F4 data)
+    voiceParams.f4Freq = Math.round(data.f3 * 1.25); // estimate F4 from F3
   }
 
   function onOverlaySelect(key: string) {

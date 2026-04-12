@@ -105,6 +105,76 @@ export const HILLENBRAND_VOWELS: HillenbrandVowel[] = [
   },
 ];
 
+export interface FormantRange {
+  min: number;
+  max: number;
+}
+
+/**
+ * Compute the typical frequency range for each formant (F1-F3) from Hillenbrand data.
+ * Range spans min-1SD to max+1SD across all 12 vowels for the given speaker group.
+ * F4 range is estimated from F3 range * 1.25.
+ */
+export function getFormantRanges(group: SpeakerGroup): FormantRange[] {
+  let f1Min = Infinity, f1Max = -Infinity;
+  let f2Min = Infinity, f2Max = -Infinity;
+  let f3Min = Infinity, f3Max = -Infinity;
+
+  for (const vowel of HILLENBRAND_VOWELS) {
+    const d = vowel[group];
+    f1Min = Math.min(f1Min, d.f1 - d.f1SD);
+    f1Max = Math.max(f1Max, d.f1 + d.f1SD);
+    f2Min = Math.min(f2Min, d.f2 - d.f2SD);
+    f2Max = Math.max(f2Max, d.f2 + d.f2SD);
+    f3Min = Math.min(f3Min, d.f3 - d.f3SD);
+    f3Max = Math.max(f3Max, d.f3 + d.f3SD);
+  }
+
+  return [
+    { min: f1Min, max: f1Max },
+    { min: f2Min, max: f2Max },
+    { min: f3Min, max: f3Max },
+    { min: Math.round(f3Min * 1.25), max: Math.round(f3Max * 1.25) },
+  ];
+}
+
+/**
+ * Interpolate F3 and F4 from Hillenbrand data using inverse-distance weighting
+ * in log F1/F2 space. F3 is interpolated directly from the dataset.
+ * F4 is estimated as F3 * 1.25 (typical F4/F3 ratio for speech).
+ *
+ * @returns { f3: number, f4: number }
+ */
+export function interpolateHigherFormants(
+  f1: number, f2: number,
+  group: SpeakerGroup,
+): { f3: number; f4: number } {
+  const logF1 = Math.log2(f1);
+  const logF2 = Math.log2(f2);
+
+  let weightSum = 0;
+  let f3Sum = 0;
+
+  for (const vowel of HILLENBRAND_VOWELS) {
+    const data = vowel[group];
+    const dF1 = logF1 - Math.log2(data.f1);
+    const dF2 = logF2 - Math.log2(data.f2);
+    const distSq = dF1 * dF1 + dF2 * dF2;
+
+    // If we're essentially on top of a vowel, use it directly
+    if (distSq < 1e-8) {
+      return { f3: data.f3, f4: Math.round(data.f3 * 1.25) };
+    }
+
+    const weight = 1 / distSq;
+    weightSum += weight;
+    f3Sum += weight * data.f3;
+  }
+
+  const f3 = Math.round(f3Sum / weightSum);
+  return { f3, f4: Math.round(f3 * 1.25) };
+}
+
 /**
  * Algebraic point-in-ellipse test.
  * Returns true if (f1, f2) lies inside or on the boundary of the ellipse

@@ -10,11 +10,11 @@
 
   // Formant colors (per UI-SPEC)
   const FORMANT_COLORS = ['#f97316', '#22c55e', '#3b82f6', '#a855f7']; // F1-F4
-  const FORMANT_LABELS = ['F1', 'F2', 'F3', 'F4'];
+  const FORMANT_LABELS = ['R1', 'R2', 'R3', 'R4'];
 
-  // Frequency range: C2 (~65 Hz) to B6 (~1976 Hz)
+  // Frequency range: C2 (~65 Hz) extended to 5kHz to show F2-F4
   const MIN_FREQ = 65;
-  const MAX_FREQ = 1976;
+  const MAX_FREQ = 5000;
   const SAMPLE_COUNT = 200;
 
   // Compute response curves -- only recompute when formant params change

@@ -8,17 +8,17 @@
   }
   let { freqToX, barRegionHeight }: Props = $props();
 
-  // Max frequency for B6 (~1976 Hz)
-  const MAX_FREQ = 1976;
+  // Extended frequency range to show harmonics near F2-F4
+  const MAX_FREQ = 5000;
 
   // Compute harmonic bars reactively from f0 and formants
   let harmonicBars = $derived.by(() => {
     const f0 = voiceParams.f0;
     const formants = voiceParams.formants;
 
-    // Compute harmonics: n=1 to 24, break when freq > B6
+    // Compute harmonics: n=1 to 48, break when freq > extended range
     const harmonics: { n: number; freq: number; amplitude: number }[] = [];
-    for (let n = 1; n <= 24; n++) {
+    for (let n = 1; n <= 48; n++) {
       const freq = f0 * n;
       if (freq > MAX_FREQ) break;
       const amplitude = spectralEnvelope(freq, formants);
@@ -32,20 +32,35 @@
     }
     if (maxAmplitude === 0) maxAmplitude = 1;
 
-    // Compute bar geometry
-    return harmonics.map(h => {
+    // Compute bar geometry and labels
+    const bars = harmonics.map(h => {
       const x = freqToX(h.freq);
       const barHeight = (h.amplitude / maxAmplitude) * barRegionHeight;
       const y = 80 - barHeight; // bars grow upward from key top at y=80
       return {
         n: h.n,
         x: x - 2, // center the 4px bar
+        centerX: x,
         y,
         height: barHeight,
         fill: h.n === 1 ? '#6366f1' : '#e0e0e0',
         opacity: h.n === 1 ? 1.0 : 0.8,
       };
     });
+
+    // Determine which harmonics get labels — skip when too tight
+    const MIN_LABEL_GAP = 20; // minimum px between labels
+    let lastLabelX = -Infinity;
+    for (const bar of bars) {
+      if (bar.centerX - lastLabelX >= MIN_LABEL_GAP) {
+        (bar as any).showLabel = true;
+        lastLabelX = bar.centerX;
+      } else {
+        (bar as any).showLabel = false;
+      }
+    }
+
+    return bars as (typeof bars[number] & { showLabel: boolean })[];
   });
 </script>
 
@@ -60,5 +75,15 @@
       opacity={bar.opacity}
       pointer-events="none"
     />
+    {#if bar.showLabel}
+      <text
+        x={bar.centerX}
+        y={bar.y - 3}
+        text-anchor="middle"
+        font-size="9"
+        fill={bar.n === 1 ? '#6366f1' : '#8a8aaa'}
+        pointer-events="none"
+      >{bar.n === 1 ? 'f0' : bar.n + 'f0'}</text>
+    {/if}
   {/each}
 </g>
