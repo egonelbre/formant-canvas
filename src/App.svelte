@@ -4,6 +4,8 @@
   import { QWERTY_MAP } from './lib/data/qwerty-map.ts';
   import { midiToHz } from './lib/audio/dsp/pitch-utils.ts';
   import TransportBar from './lib/components/TransportBar.svelte';
+  import PianoHarmonics from './lib/components/PianoHarmonics.svelte';
+  import VowelChart from './lib/components/VowelChart.svelte';
   import PitchSection from './lib/components/PitchSection.svelte';
   import VoicePresets from './lib/components/VoicePresets.svelte';
   import PhonationMode from './lib/components/PhonationMode.svelte';
@@ -12,7 +14,7 @@
   const bridge = new AudioBridge();
   let bridgeInitialized = $state(false);
 
-  // Track pressed QWERTY keys for visual highlight on piano
+  // Track pressed QWERTY keys (still used for keyboard-driven f0 changes)
   let pressedKeys = $state(new Set<string>());
 
   // Forward ALL voiceParams changes to audio graph (AUDIO-06, LINK-02)
@@ -73,7 +75,9 @@
 
 <main>
   <TransportBar onplayclick={handlePlayPause} {bridgeInitialized} />
-  <PitchSection {pressedKeys} />
+  <PianoHarmonics />
+  <VowelChart />
+  <PitchSection />
   <VoicePresets />
   <PhonationMode />
   <ExpressionControls />

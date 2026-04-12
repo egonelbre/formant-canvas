@@ -10,6 +10,12 @@
   --color-active: #3a3a6a;
   --color-muted: #ef4444;
 
+  /* Formant color tokens (Phase 3 UI-SPEC) */
+  --color-f1: #f97316;
+  --color-f2: #22c55e;
+  --color-f3: #3b82f6;
+  --color-f4: #a855f7;
+
   /* Spacing tokens */
   --spacing-xs: 4px;
   --spacing-sm: 8px;
@@ -28,7 +34,7 @@
 }
 
 main {
-  max-width: 600px;
+  max-width: 960px;
   margin: var(--spacing-2xl) auto;
   padding: 0 var(--spacing-md);
 }
