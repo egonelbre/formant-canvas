@@ -19,7 +19,11 @@
   import { computeTargets } from './lib/strategies/engine.ts';
   import { pickStrategy } from './lib/strategies/auto-strategy.ts';
 
-  let expertMode = $state(false);
+  let expertMode = $state(localStorage.getItem('expertMode') === 'true');
+
+  $effect(() => {
+    localStorage.setItem('expertMode', String(expertMode));
+  });
 
   const bridge = new AudioBridge();
   let bridgeInitialized = $state(false);
