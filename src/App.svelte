@@ -11,8 +11,15 @@
   import PhonationMode from './lib/components/PhonationMode.svelte';
   import ExpressionControls from './lib/components/ExpressionControls.svelte';
   import StrategyPanel from './lib/components/StrategyPanel.svelte';
+  import R1StrategyChart from './lib/charts/R1StrategyChart.svelte';
+  import R2StrategyChart from './lib/charts/R2StrategyChart.svelte';
+  import Tooltip from './lib/components/Tooltip.svelte';
+  import VibratoVisual from './lib/components/VibratoVisual.svelte';
+  import { TOOLTIPS } from './lib/data/tooltips.ts';
   import { computeTargets } from './lib/strategies/engine.ts';
   import { pickStrategy } from './lib/strategies/auto-strategy.ts';
+
+  let expertMode = $state(false);
 
   const bridge = new AudioBridge();
   let bridgeInitialized = $state(false);
@@ -114,13 +121,106 @@
 
 <svelte:document onkeydown={handleKeyDown} onkeyup={handleKeyUp} />
 
-<main>
-  <TransportBar onplayclick={handlePlayPause} {bridgeInitialized} />
-  <PianoHarmonics />
-  <VowelChart />
-  <StrategyPanel />
-  <PitchSection />
-  <VoicePresets />
-  <PhonationMode />
-  <ExpressionControls />
-</main>
+<div class="app-grid">
+  <!-- HEADER: Voice chips + expert toggle + transport (D-05, D-14) -->
+  <header class="app-header">
+    <VoicePresets {expertMode} />
+    <div class="header-spacer"></div>
+    <label class="expert-toggle">
+      <span class="expert-label">Expert</span>
+      <input type="checkbox" bind:checked={expertMode} />
+      <span class="toggle-track"><span class="toggle-thumb"></span></span>
+    </label>
+    <TransportBar onplayclick={handlePlayPause} {bridgeInitialized} {expertMode} />
+  </header>
+
+  <!-- SIDEBAR: Pitch, Vibrato, Phonation, Strategy (D-06, D-07) -->
+  <aside class="app-sidebar">
+    <PitchSection {expertMode} />
+    <div class="sidebar-section">
+      <h2 class="section-heading">Vibrato</h2>
+      <ExpressionControls {expertMode} />
+      <VibratoVisual rate={voiceParams.vibratoRate} extent={voiceParams.vibratoExtent} />
+    </div>
+    <PhonationMode {expertMode} />
+    <StrategyPanel />
+  </aside>
+
+  <!-- CENTER: Piano keyboard with harmonics -->
+  <div class="app-piano">
+    <PianoHarmonics />
+  </div>
+
+  <!-- RIGHT: VowelChart / R2 / R1 stacked (D-03) -->
+  <div class="app-charts">
+    <VowelChart {expertMode} />
+    <R2StrategyChart
+      f0={voiceParams.f0}
+      f2Freq={voiceParams.f2Freq}
+      r2Strategy={voiceParams.r2Strategy}
+      strategyMode={voiceParams.strategyMode}
+      voicePreset={voiceParams.voicePreset}
+    />
+    <R1StrategyChart
+      f0={voiceParams.f0}
+      f1Freq={voiceParams.f1Freq}
+      r1Strategy={voiceParams.r1Strategy}
+      strategyMode={voiceParams.strategyMode}
+      voicePreset={voiceParams.voicePreset}
+    />
+  </div>
+</div>
+
+<style>
+  .expert-toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    cursor: pointer;
+    user-select: none;
+  }
+  .expert-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text);
+  }
+  .expert-toggle input[type="checkbox"] {
+    display: none;
+  }
+  .toggle-track {
+    width: 40px;
+    height: 22px;
+    background: var(--color-border);
+    border-radius: 11px;
+    position: relative;
+    transition: background 0.2s;
+  }
+  .expert-toggle input:checked + .toggle-track {
+    background: var(--color-accent);
+  }
+  .toggle-thumb {
+    width: 18px;
+    height: 18px;
+    background: var(--color-text);
+    border-radius: 50%;
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    transition: transform 0.2s;
+  }
+  .expert-toggle input:checked + .toggle-track .toggle-thumb {
+    transform: translateX(18px);
+  }
+  .sidebar-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+  }
+  .section-heading {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.2;
+    margin: 0;
+    color: var(--color-text);
+  }
+</style>

@@ -2,6 +2,13 @@
   import { voiceParams } from '../audio/state.svelte.ts';
   import { VOICE_PRESETS } from '../data/voice-presets.ts';
   import ChipGroup from './ChipGroup.svelte';
+  import Tooltip from './Tooltip.svelte';
+  import { TOOLTIPS } from '../data/tooltips.ts';
+
+  interface Props {
+    expertMode?: boolean;
+  }
+  let { expertMode = false }: Props = $props();
 
   const options = Object.entries(VOICE_PRESETS).map(([key, p]) => ({ key, label: p.label }));
 
@@ -17,23 +24,15 @@
   }
 </script>
 
-<section class="voice-section">
-  <h2 class="section-heading">Voice</h2>
+<div class="voice-chips">
+  <Tooltip text={TOOLTIPS.voicePreset.text} expert={TOOLTIPS.voicePreset.expert} {expertMode} />
   <ChipGroup {options} selected={voiceParams.voicePreset} onselect={loadPreset} />
-</section>
+</div>
 
 <style>
-  .voice-section {
+  .voice-chips {
     display: flex;
-    flex-direction: column;
-    gap: var(--spacing-md, 16px);
-  }
-
-  .section-heading {
-    font-size: 16px;
-    font-weight: 600;
-    line-height: 1.2;
-    color: var(--color-text, #e0e0e0);
-    margin: 0;
+    align-items: center;
+    gap: var(--spacing-sm, 8px);
   }
 </style>

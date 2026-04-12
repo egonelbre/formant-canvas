@@ -1,14 +1,18 @@
 <script lang="ts">
   import { voiceParams } from '../audio/state.svelte.ts';
+  import Tooltip from './Tooltip.svelte';
+  import { TOOLTIPS } from '../data/tooltips.ts';
 
   interface Props {
     onplayclick: () => void;
     bridgeInitialized?: boolean;
+    expertMode?: boolean;
   }
-  let { onplayclick, bridgeInitialized = false }: Props = $props();
+  let { onplayclick, bridgeInitialized = false, expertMode = false }: Props = $props();
 </script>
 
 <div class="transport-bar">
+  <Tooltip text={TOOLTIPS.playStop.text} {expertMode} />
   <button
     class="transport-btn play-btn"
     class:playing={voiceParams.playing}
@@ -26,6 +30,7 @@
   <div class="volume-control">
     <div class="volume-header">
       <span class="label">Volume</span>
+      <Tooltip text={TOOLTIPS.volume.text} expert={TOOLTIPS.volume.expert} {expertMode} />
       <span class="readout">{Math.round(voiceParams.masterGain * 100)}%</span>
     </div>
     <input
