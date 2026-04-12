@@ -65,9 +65,9 @@ export function computeTargets(
   // Singer's formant cluster
   if (singerFormant) {
     const center = SINGER_FORMANT_CENTERS[voiceType] ?? 2600;
-    targets.f3 = center - 200;
-    targets.f4 = center;
-    targets.f5 = center + 300;
+    targets.f3 = clamp(center - 200, FORMANT_BOUNDS.f3.min, FORMANT_BOUNDS.f3.max);
+    targets.f4 = clamp(center, FORMANT_BOUNDS.f4.min, FORMANT_BOUNDS.f4.max);
+    targets.f5 = clamp(center + 300, FORMANT_BOUNDS.f5.min, FORMANT_BOUNDS.f5.max);
     // Singer's formant is typically for lower voices at lower pitches
     if (f0 > 659) inRange = false;
   }
