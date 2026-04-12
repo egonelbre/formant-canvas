@@ -2,19 +2,19 @@ import type { R1Strategy, R2Strategy, StrategyDefinition } from './types';
 
 export const R1_STRATEGIES: Record<R1Strategy, StrategyDefinition> = {
   'r1-f0': {
-    notation: 'R1:f0',
+    notation: 'R1:f\u2080',
     description: 'First formant tracks pitch',
     f0Range: { min: 262, max: 1047 },
     voiceTypes: ['soprano', 'mezzo', 'tenor'],
   },
   'r1-2f0': {
-    notation: 'R1:2f0',
+    notation: 'R1:2f\u2080',
     description: 'First formant tracks second harmonic',
     f0Range: { min: 196, max: 659 },
     voiceTypes: ['tenor', 'baritone', 'alto', 'mezzo'],
   },
   'r1-3f0': {
-    notation: 'R1:3f0',
+    notation: 'R1:3f\u2080',
     description: 'First formant tracks third harmonic',
     f0Range: { min: 65, max: 262 },
     voiceTypes: ['baritone', 'bass'],
@@ -23,13 +23,13 @@ export const R1_STRATEGIES: Record<R1Strategy, StrategyDefinition> = {
 
 export const R2_STRATEGIES: Record<R2Strategy, StrategyDefinition> = {
   'r2-2f0': {
-    notation: 'R2:2f0',
+    notation: 'R2:2f\u2080',
     description: 'Second formant tracks second harmonic',
     f0Range: { min: 262, max: 784 },
     voiceTypes: ['soprano', 'mezzo'],
   },
   'r2-3f0': {
-    notation: 'R2:3f0',
+    notation: 'R2:3f\u2080',
     description: 'Second formant tracks third harmonic',
     f0Range: { min: 220, max: 659 },
     voiceTypes: ['tenor', 'alto'],

@@ -84,7 +84,7 @@
         font-size="9"
         fill={bar.n === 1 ? '#2563eb' : '#777777'}
         pointer-events="none"
-      >{bar.n === 1 ? 'f0' : bar.n + 'f0'}</text>
+      >{bar.n === 1 ? 'f\u2080' : bar.n + 'f\u2080'}</text>
     {/if}
   {/each}
 </g>

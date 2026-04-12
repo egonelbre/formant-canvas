@@ -57,9 +57,9 @@
 
   // Diagonal harmonic lines (n=1, 2, 3)
   const harmonics = [
-    { n: 1, label: 'f0' },
-    { n: 2, label: '2f0' },
-    { n: 3, label: '3f0' },
+    { n: 1, label: 'f\u2080' },
+    { n: 2, label: '2f\u2080' },
+    { n: 3, label: '3f\u2080' },
   ];
 
   let diagonalLines = $derived(
