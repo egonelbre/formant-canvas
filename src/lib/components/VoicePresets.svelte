@@ -18,6 +18,9 @@
     voiceParams.f2Freq = preset.f2; voiceParams.f2BW = preset.f2BW;
     voiceParams.f3Freq = preset.f3; voiceParams.f3BW = preset.f3BW;
     voiceParams.f4Freq = preset.f4; voiceParams.f4BW = preset.f4BW;
+    // F5 not in preset data — derive from F4 (typical F5 ≈ F4 * 1.2)
+    voiceParams.f5Freq = Math.round(preset.f4 * 1.2);
+    voiceParams.f5BW = Math.round(preset.f4BW * 1.1);
     voiceParams.voicePreset = key;
   }
 </script>
