@@ -121,8 +121,8 @@
 <div class="vowel-chart-section" bind:this={containerEl} bind:clientWidth={cWidth} bind:clientHeight={cHeight}>
   {#if expertMode}
     <div class="formant-readouts">
-      <span class="readout">F1: {Math.round(voiceParams.f1Freq)} Hz</span>
-      <span class="readout">F2: {Math.round(voiceParams.f2Freq)} Hz</span>
+      <span class="readout">R1: {Math.round(voiceParams.f1Freq)} Hz</span>
+      <span class="readout">R2: {Math.round(voiceParams.f2Freq)} Hz</span>
     </div>
   {/if}
 
@@ -168,7 +168,7 @@
       <text
         x={PLOT_WIDTH - 2} y={PLOT_HEIGHT - 16}
         text-anchor="end" font-size="10" font-weight="600" fill="var(--color-text-secondary)" opacity="0.5"
-      >F2 Hz</text>
+      >R2 Hz</text>
 
       <!-- Inside axis labels: F1 along left, skip 200 (shown in corner) -->
       {#each f1Ticks as tick}
@@ -182,7 +182,7 @@
       <text
         x={4} y={14}
         text-anchor="start" font-size="10" font-weight="600" fill="var(--color-text-secondary)" opacity="0.5"
-      >F1 Hz</text>
+      >R1 Hz</text>
 
       <!-- Corner label: F1=200 above, F2=600 below -->
       <text
