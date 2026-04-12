@@ -72,8 +72,12 @@ class GlottalProcessor extends AudioWorkletProcessor {
   /** Normalized phase within the glottal period [0, 1) */
   private phase: number = 0;
 
-  /** Fundamental frequency in Hz */
+  /** Fundamental frequency in Hz (smoothed toward f0Target) */
   private f0: number = 120;
+  /** Target f0 — set by postMessage, smoothed per-sample */
+  private f0Target: number = 120;
+  /** One-pole smoothing coefficient for f0 (recomputed from sampleRate) */
+  private f0Smooth: number = 0;
 
   /** Aspiration noise mix level (0-1) */
   private aspirationLevel: number = 0.03;
@@ -102,7 +106,7 @@ class GlottalProcessor extends AudioWorkletProcessor {
     this.port.onmessage = (event: MessageEvent) => {
       const data = event.data;
       if (data.type === 'params') {
-        if (data.f0 !== undefined) this.f0 = data.f0;
+        if (data.f0 !== undefined) this.f0Target = data.f0;
         if (data.aspirationLevel !== undefined) this.aspirationLevel = data.aspirationLevel;
         if (data.openQuotient !== undefined) this.openQuotient = data.openQuotient;
         if (data.vibratoRate !== undefined) this.vibratoRate = data.vibratoRate;
@@ -127,6 +131,11 @@ class GlottalProcessor extends AudioWorkletProcessor {
     const channel = output[0];
     const sr = sampleRate;
 
+    // Compute f0 smoothing coefficient (~50ms time constant)
+    if (this.f0Smooth === 0) {
+      this.f0Smooth = 1 - Math.exp(-1 / (0.05 * sr));
+    }
+
     // Recompute tilt coefficients only when spectralTilt changes
     if (this.tiltCoeffsNeedUpdate) {
       const coeffs = computeTiltCoeffs(this.spectralTilt, sr);
@@ -136,6 +145,9 @@ class GlottalProcessor extends AudioWorkletProcessor {
     }
 
     for (let i = 0; i < channel.length; i++) {
+      // Smooth f0 toward target (~50ms transition)
+      this.f0 += this.f0Smooth * (this.f0Target - this.f0);
+
       // Vibrato modulation (D-06): audio-rate sine LFO
       const vibratoRatio = vibratoModulation(this.vibratoPhase, this.vibratoExtent);
       const f0Mod = (this.f0 + this.jitterOffset) * vibratoRatio;
