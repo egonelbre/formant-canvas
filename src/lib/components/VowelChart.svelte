@@ -5,7 +5,6 @@
   import type { SpeakerGroup, HillenbrandVowel } from '../data/hillenbrand.ts';
   import { voiceParams } from '../audio/state.svelte.ts';
   import LabeledSlider from './LabeledSlider.svelte';
-  import VowelChartOverlay from './VowelChartOverlay.svelte';
   import StrategyOverlayVowel from './StrategyOverlayVowel.svelte';
 
   interface Props {
@@ -13,50 +12,41 @@
   }
   let { expertMode = false }: Props = $props();
 
-  // SVG dimensions (per UI-SPEC)
-  const SVG_WIDTH = 480;
-  const SVG_HEIGHT = 400;
-  const MARGIN = { left: 48, right: 24, top: 32, bottom: 48 };
-  const PLOT_WIDTH = SVG_WIDTH - MARGIN.left - MARGIN.right; // 408
-  const PLOT_HEIGHT = SVG_HEIGHT - MARGIN.top - MARGIN.bottom; // 320
+  // Measure container for responsive sizing
+  let containerEl: HTMLDivElement | undefined = $state();
+  let cWidth = $state(400);
+  let cHeight = $state(400);
 
-  // Log scales (D-01, D-02)
-  const f1Scale = scaleLog().domain([200, 1000]).range([PLOT_HEIGHT, 0]); // F1 up = Cartesian
-  const f2Scale = scaleLog().domain([600, 3000]).range([0, PLOT_WIDTH]);  // F2 right
+  // Minimal margins — labels go inside the plot
+  const MARGIN = { left: 4, right: 4, top: 4, bottom: 4 };
+  let PLOT_WIDTH = $derived(cWidth - MARGIN.left - MARGIN.right);
+  let PLOT_HEIGHT = $derived(cHeight - MARGIN.top - MARGIN.bottom);
 
-  // Axis tick values
-  const f1Ticks = [200, 300, 400, 500, 600, 700, 800, 1000];
-  const f2Ticks = [600, 800, 1000, 1500, 2000, 2500, 3000];
+  // Log scales
+  let f1Scale = $derived(scaleLog().domain([200, 1000]).range([PLOT_HEIGHT, 0]));
+  let f2Scale = $derived(scaleLog().domain([600, 3000]).range([0, PLOT_WIDTH]));
+
+  // Axis tick values (fewer for inside labels)
+  const f1Ticks = [200, 300, 500, 700, 1000];
+  const f2Ticks = [600, 1000, 1500, 2000, 3000];
 
   // State
   let currentGroup: SpeakerGroup = $state('men');
   let dragging = $state(false);
   let svgEl: SVGSVGElement | undefined = $state();
 
-  // Tweened handle position — matches audio smoothing (60ms TC ≈ 180ms to 95%)
-  // During drag, frequent updates make the tween imperceptible;
-  // for strategy-driven jumps, it provides smooth visual glide.
   const TWEEN_DURATION = 180;
-  const tweenedHandleX = tweened(f2Scale(voiceParams.f2Freq), { duration: TWEEN_DURATION });
-  const tweenedHandleY = tweened(f1Scale(voiceParams.f1Freq), { duration: TWEEN_DURATION });
+  const tweenedHandleX = tweened(0, { duration: TWEEN_DURATION });
+  const tweenedHandleY = tweened(0, { duration: TWEEN_DURATION });
 
-  $effect(() => {
-    tweenedHandleX.set(f2Scale(voiceParams.f2Freq));
-  });
-  $effect(() => {
-    tweenedHandleY.set(f1Scale(voiceParams.f1Freq));
-  });
+  $effect(() => { tweenedHandleX.set(f2Scale(voiceParams.f2Freq)); });
+  $effect(() => { tweenedHandleY.set(f1Scale(voiceParams.f1Freq)); });
 
-  // Expose both raw (for hit-testing) and tweened (for rendering)
   let handleX = $derived($tweenedHandleX);
   let handleY = $derived($tweenedHandleY);
 
-  // Derived: active vowel region (D-19, RANGE-03)
   let activeRegion = $derived(getActiveVowelRegion(voiceParams.f1Freq, voiceParams.f2Freq, currentGroup));
 
-  // Voice-type overlay: show range for current speaker group
-
-  // Ellipse rendering helpers
   function ellipseCx(vowel: HillenbrandVowel): number {
     return f2Scale(vowel[currentGroup].f2);
   }
@@ -72,17 +62,13 @@
     return Math.abs(f1Scale(data.f1 + data.f1SD) - f1Scale(data.f1));
   }
 
-  // Pointer-to-SVG coordinate conversion (per PianoKeyboard pattern)
   function pointerToPlot(e: PointerEvent): { f1: number; f2: number } | null {
     if (!svgEl) return null;
     const rect = svgEl.getBoundingClientRect();
-    // Convert CSS pixels to viewBox coordinates
-    const svgX = (e.clientX - rect.left) / rect.width * SVG_WIDTH;
-    const svgY = (e.clientY - rect.top) / rect.height * SVG_HEIGHT;
-    // Subtract margins to get plot-local coords
+    const svgX = (e.clientX - rect.left) / rect.width * cWidth;
+    const svgY = (e.clientY - rect.top) / rect.height * cHeight;
     const plotX = svgX - MARGIN.left;
     const plotY = svgY - MARGIN.top;
-    // Invert scales to Hz, clamped to domain
     const f2Hz = Math.max(600, Math.min(3000, f2Scale.invert(plotX)));
     const f1Hz = Math.max(200, Math.min(1000, f1Scale.invert(plotY)));
     return { f1: f1Hz, f2: f2Hz };
@@ -93,17 +79,14 @@
     if (!result) return;
     voiceParams.f1Freq = result.f1;
     voiceParams.f2Freq = result.f2;
-    // Interpolate F3/F4 from nearest Hillenbrand vowels
     const higher = interpolateHigherFormants(result.f1, result.f2, currentGroup);
     voiceParams.f3Freq = higher.f3;
     voiceParams.f4Freq = higher.f4;
   }
 
-  // Drag handlers (pointer-capture, same pattern as PianoKeyboard)
   function onPointerDown(e: PointerEvent) {
     e.preventDefault();
     dragging = true;
-    // D-14: temporarily override strategy when dragging on locked vowel chart
     if (voiceParams.strategyMode === 'locked') {
       voiceParams.strategyOverriding = true;
     }
@@ -119,26 +102,23 @@
 
   function onPointerUp(e: PointerEvent) {
     dragging = false;
-    // D-14: release strategy override -- formant snaps back
     if (voiceParams.strategyOverriding) {
       voiceParams.strategyOverriding = false;
     }
     svgEl?.releasePointerCapture(e.pointerId);
   }
 
-  // Vowel preset click (D-09, D-10, D-11)
   function snapToVowel(vowel: HillenbrandVowel) {
     const data = vowel[currentGroup];
     voiceParams.f1Freq = data.f1;
     voiceParams.f2Freq = data.f2;
     voiceParams.f3Freq = data.f3;
-    voiceParams.f4Freq = Math.round(data.f3 * 1.25); // estimate F4 from F3
-    voiceParams.f5Freq = Math.round(data.f3 * 1.6);  // rough F5 estimate
+    voiceParams.f4Freq = Math.round(data.f3 * 1.25);
+    voiceParams.f5Freq = Math.round(data.f3 * 1.6);
   }
-
 </script>
 
-<div class="vowel-chart-section">
+<div class="vowel-chart-section" bind:this={containerEl} bind:clientWidth={cWidth} bind:clientHeight={cHeight}>
   {#if expertMode}
     <div class="formant-readouts">
       <span class="readout">F1: {Math.round(voiceParams.f1Freq)} Hz</span>
@@ -149,7 +129,7 @@
   <svg
     bind:this={svgEl}
     class="vowel-chart"
-    viewBox="0 0 {SVG_WIDTH} {SVG_HEIGHT}"
+    viewBox="0 0 {cWidth} {cHeight}"
     preserveAspectRatio="xMidYMid meet"
     role="img"
     aria-label="F1/F2 vowel space diagram"
@@ -159,69 +139,48 @@
     onpointerup={onPointerUp}
     onpointercancel={onPointerUp}
   >
-    <!-- Plot area group offset by margins -->
     <g transform="translate({MARGIN.left}, {MARGIN.top})">
       <!-- Grid lines -->
       {#each f2Ticks as tick}
         <line
           x1={f2Scale(tick)} y1={0}
           x2={f2Scale(tick)} y2={PLOT_HEIGHT}
-          stroke="var(--color-border)" stroke-opacity="0.4" stroke-width="0.5"
+          stroke="var(--color-border)" stroke-opacity="0.3" stroke-width="0.5"
         />
       {/each}
       {#each f1Ticks as tick}
         <line
           x1={0} y1={f1Scale(tick)}
           x2={PLOT_WIDTH} y2={f1Scale(tick)}
-          stroke="var(--color-border)" stroke-opacity="0.4" stroke-width="0.5"
+          stroke="var(--color-border)" stroke-opacity="0.3" stroke-width="0.5"
         />
       {/each}
 
-      <!-- X-axis (F2) -->
-      <line x1={0} y1={PLOT_HEIGHT} x2={PLOT_WIDTH} y2={PLOT_HEIGHT} stroke="var(--color-border)" stroke-width="1" />
+      <!-- Inside axis labels: F2 along bottom edge -->
       {#each f2Ticks as tick}
-        <line
-          x1={f2Scale(tick)} y1={PLOT_HEIGHT}
-          x2={f2Scale(tick)} y2={PLOT_HEIGHT + 6}
-          stroke="var(--color-border)" stroke-width="1"
-        />
         <text
-          x={f2Scale(tick)} y={PLOT_HEIGHT + 18}
-          text-anchor="middle" font-size="11" fill="var(--color-text-secondary)"
+          x={f2Scale(tick)} y={PLOT_HEIGHT - 4}
+          text-anchor="middle" font-size="10" fill="var(--color-text-secondary)" opacity="0.6"
         >{tick}</text>
       {/each}
       <text
-        x={PLOT_WIDTH / 2} y={PLOT_HEIGHT + 34}
-        text-anchor="middle" font-size="12" font-weight="600" fill="var(--color-text-secondary)"
-      >F2 (Hz)</text>
+        x={PLOT_WIDTH - 2} y={PLOT_HEIGHT - 16}
+        text-anchor="end" font-size="10" font-weight="600" fill="var(--color-text-secondary)" opacity="0.5"
+      >F2 Hz</text>
 
-      <!-- Y-axis (F1) -->
-      <line x1={0} y1={0} x2={0} y2={PLOT_HEIGHT} stroke="var(--color-border)" stroke-width="1" />
+      <!-- Inside axis labels: F1 along left edge -->
       {#each f1Ticks as tick}
-        <line
-          x1={0} y1={f1Scale(tick)}
-          x2={-6} y2={f1Scale(tick)}
-          stroke="var(--color-border)" stroke-width="1"
-        />
         <text
-          x={-10} y={f1Scale(tick)}
-          text-anchor="end" dominant-baseline="central" font-size="11" fill="var(--color-text-secondary)"
+          x={4} y={f1Scale(tick) - 3}
+          text-anchor="start" font-size="10" fill="var(--color-text-secondary)" opacity="0.6"
         >{tick}</text>
       {/each}
       <text
-        x={0} y={0}
-        text-anchor="middle" font-size="12" font-weight="600" fill="var(--color-text-secondary)"
-        transform="translate({-36}, {PLOT_HEIGHT / 2}) rotate(-90)"
-      >F1 (Hz)</text>
+        x={4} y={14}
+        text-anchor="start" font-size="10" font-weight="600" fill="var(--color-text-secondary)" opacity="0.5"
+      >F1 Hz</text>
 
-      <!-- Voice-type overlay polygon -->
-      <VowelChartOverlay
-        group={currentGroup}
-        {f1Scale}
-        {f2Scale}
-      />
-
-      <!-- Hillenbrand ellipses (D-16, RANGE-01) -->
+      <!-- Hillenbrand ellipses -->
       {#each HILLENBRAND_VOWELS as vowel (vowel.ipa)}
         <ellipse
           cx={ellipseCx(vowel)}
@@ -232,7 +191,6 @@
           stroke={activeRegion === vowel.ipa ? 'rgba(37, 99, 235, 0.4)' : 'rgba(0, 0, 0, 0.15)'}
           stroke-width="1"
         />
-        <!-- Invisible click target -->
         <circle
           cx={ellipseCx(vowel)}
           cy={ellipseCy(vowel)}
@@ -243,7 +201,6 @@
           aria-label="Set vowel to {vowel.ipa}"
           onclick={(e: MouseEvent) => { e.stopPropagation(); snapToVowel(vowel); }}
         />
-        <!-- IPA label -->
         <text
           x={ellipseCx(vowel)}
           y={ellipseCy(vowel)}
@@ -256,7 +213,7 @@
         >{vowel.ipa}</text>
       {/each}
 
-      <!-- Drag handle (D-12, D-13) -->
+      <!-- Drag handle -->
       <circle
         cx={handleX}
         cy={handleY}
@@ -270,17 +227,8 @@
         aria-valuemax={1000}
       />
 
-      <!-- Strategy target overlay (D-08) -->
+      <!-- Strategy target overlay -->
       <StrategyOverlayVowel {f1Scale} {f2Scale} {handleX} {handleY} />
-
-      <!-- Citation (D-18, VOWEL-05) -->
-      <text
-        x={PLOT_WIDTH}
-        y={PLOT_HEIGHT + 44}
-        text-anchor="end"
-        font-size="11"
-        fill="var(--color-text-secondary)"
-      >Data: Hillenbrand et al. (1995)</text>
     </g>
   </svg>
 
@@ -307,12 +255,13 @@
     display: flex;
     flex-direction: column;
     width: 100%;
-    max-height: 100%;
+    height: 100%;
+    overflow: hidden;
   }
 
   .vowel-chart {
     width: 100%;
-    height: auto;
+    height: 100%;
     display: block;
     flex: 1;
     min-height: 0;

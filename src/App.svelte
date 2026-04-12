@@ -105,7 +105,7 @@
 
   const HELP = {
     controls: 'Pitch, phonation, vibrato, and vocal strategy controls. Strategy determines how formants track pitch harmonics.',
-    charts: 'Vowel space (drag to change timbre) and Sundberg resonance strategy charts showing formant-harmonic relationships.',
+    charts: 'Vowel space: F1 (openness) vs F2 (frontness). Drag the dot to change timbre, click IPA symbols to snap. Data: Hillenbrand et al. (1995). Below: Sundberg resonance strategy charts showing formant-harmonic relationships.',
   };
 </script>
 
