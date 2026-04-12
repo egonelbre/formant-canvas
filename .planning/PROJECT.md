@@ -23,16 +23,18 @@ Linked exploration — audio and visuals are tightly coupled, so changing a para
 
 <!-- Current scope. Building toward these. -->
 
-- [ ] Glottal pulse synthesis with smoothly interpolating parameters
-- [ ] Formant filter chain (at least F1–F4, tunable frequency/bandwidth/gain)
-- [ ] Voice parameters: vibrato (rate + depth) and jitter
-- [ ] Fundamental + overtones displayed on a piano keyboard
-- [ ] Visualization of the ranges formants can occupy (per vowel / per voice type)
-- [ ] Vocal strategies (R1:2f, R1:f, R2:2f, …) with both auto-tune and overlay modes
-- [ ] F1/F2 vowel diagram with direct manipulation (drag to tune)
-- [ ] Modern, pedagogically friendly UI: clean aesthetic, preset vowels/voices/strategies, inline explanations, direct manipulation of formants/harmonics
-- [ ] Real-time linked updates across all views when any parameter changes
-- [ ] Runs in the browser with no install (Web Audio API)
+- [ ] LF (Liljencrants-Fant) glottal pulse model as user-selectable alternative to Rosenberg
+- [ ] Cascade formant filter topology (series chain) with higher-order resonances
+- [ ] Anatomical vocal tract side-view visualization — scientifically accurate cross-section that deforms based on current formant values, linked in real time
+
+## Current Milestone: v0.2 Voice Model Depth
+
+**Goal:** Upgrade the voice engine with a more realistic glottal source (LF model), better formant filtering (cascade topology, higher-order resonances), and add a scientifically-grounded vocal tract cross-section visualization that deforms in real time as formants change.
+
+**Target features:**
+- LF (Liljencrants-Fant) glottal pulse model as an alternative to Rosenberg, user-selectable
+- Cascade formant filter topology (series chain) with higher-order resonances
+- Anatomical vocal tract side-view visualization — simplified but scientifically accurate cross-section that deforms based on current formant values
 
 ### Out of Scope
 
@@ -91,4 +93,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-12 after Phase 1 completion*
+*Last updated: 2026-04-13 after milestone v0.2 started*

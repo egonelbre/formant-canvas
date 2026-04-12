@@ -1,35 +1,34 @@
 ---
 gsd_state_version: 1.0
-milestone: v0.1
-milestone_name: Initial Release
-status: completed
-stopped_at: Milestone v0.1 shipped
-last_updated: "2026-04-12T21:30:00Z"
-last_activity: 2026-04-12
+milestone: v0.2
+milestone_name: Voice Model Depth
+status: active
+stopped_at: null
+last_updated: "2026-04-13T00:00:00Z"
+last_activity: 2026-04-13
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 21
-  completed_plans: 21
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-04-12)
+See: .planning/PROJECT.md (updated 2026-04-13)
 
 **Core value:** Linked exploration — audio and visuals update together in real time as any parameter changes
-**Current focus:** Planning next milestone
+**Current focus:** Milestone v0.2 — Voice Model Depth
 
 ## Current Position
 
-Milestone: v0.1 shipped
-Status: Complete — ready for next milestone
-Last activity: 2026-04-12 - Completed quick task 260412-u6j: Convert tooltips into proper help dialogs
-
-Progress: [##########] 100%
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-04-13 — Milestone v0.2 started
 
 ## Accumulated Context
 
