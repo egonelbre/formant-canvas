@@ -51,9 +51,9 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Vocal Strategies
 
 - [x] **STRAT-01**: App supports at least: speech (untuned), R1:f₀, R1:2f₀, R1:3f₀, R2:2f₀, R2:3f₀, and the singer's-formant cluster
-- [ ] **STRAT-02**: Strategies can be displayed as **overlay** — target lines/points drawn on the piano and F1/F2 chart while the user tunes manually
-- [ ] **STRAT-03**: Strategies can be **locked** — the app auto-tunes the relevant formant(s) as f₀ changes so the ratio is maintained
-- [ ] **STRAT-04**: When a strategy is locked and the user drags a locked formant directly, the interaction is resolved predictably (either drag is blocked with visible feedback, or strategy unlocks — behavior is consistent and documented in-app)
+- [x] **STRAT-02**: Strategies can be displayed as **overlay** — target lines/points drawn on the piano and F1/F2 chart while the user tunes manually
+- [x] **STRAT-03**: Strategies can be **locked** — the app auto-tunes the relevant formant(s) as f₀ changes so the ratio is maintained
+- [x] **STRAT-04**: When a strategy is locked and the user drags a locked formant directly, the interaction is resolved predictably (either drag is blocked with visible feedback, or strategy unlocks — behavior is consistent and documented in-app)
 - [x] **STRAT-05**: Strategy selector is a one-click preset list with plain-language descriptions next to the notation
 
 ### Linked Updates
@@ -156,9 +156,9 @@ Which phases cover which requirements. Filled by roadmapper.
 | RANGE-02 | Phase 3 | Pending |
 | RANGE-03 | Phase 3 | Pending |
 | STRAT-01 | Phase 4 | Complete |
-| STRAT-02 | Phase 4 | Pending |
-| STRAT-03 | Phase 4 | Pending |
-| STRAT-04 | Phase 4 | Pending |
+| STRAT-02 | Phase 4 | Complete |
+| STRAT-03 | Phase 4 | Complete |
+| STRAT-04 | Phase 4 | Complete |
 | STRAT-05 | Phase 4 | Complete |
 | LINK-01 | Phase 3 | Pending |
 | LINK-02 | Phase 1 | Pending |
