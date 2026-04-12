@@ -41,6 +41,21 @@ export class VoiceParams {
   // Voice preset tracking (D-12)
   voicePreset = $state<string | null>(null);  // null = custom
 
+  /** Read all synth-relevant reactive fields to establish dependency tracking.
+   *  Co-located here so new parameters only need to be added in one place. */
+  get snapshot() {
+    return {
+      f0: this.f0, f1Freq: this.f1Freq, f1BW: this.f1BW, f1Gain: this.f1Gain,
+      f2Freq: this.f2Freq, f2BW: this.f2BW, f2Gain: this.f2Gain,
+      f3Freq: this.f3Freq, f3BW: this.f3BW, f3Gain: this.f3Gain,
+      f4Freq: this.f4Freq, f4BW: this.f4BW, f4Gain: this.f4Gain,
+      masterGain: this.masterGain, aspirationLevel: this.aspirationLevel,
+      openQuotient: this.openQuotient, vibratoRate: this.vibratoRate,
+      vibratoExtent: this.vibratoExtent, jitterAmount: this.jitterAmount,
+      spectralTilt: this.spectralTilt, muted: this.muted,
+    };
+  }
+
   /** Get formant params as an array for iteration */
   get formants(): FormantParams[] {
     return [

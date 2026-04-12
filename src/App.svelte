@@ -16,21 +16,9 @@
   let pressedKeys = $state(new Set<string>());
 
   // Forward ALL voiceParams changes to audio graph (AUDIO-06, LINK-02)
+  // Dependency tracking is consolidated in voiceParams.snapshot (WR-03)
   $effect(() => {
-    // Read every reactive field to establish Svelte dependency tracking
-    void voiceParams.f0;
-    void voiceParams.f1Freq; void voiceParams.f1BW; void voiceParams.f1Gain;
-    void voiceParams.f2Freq; void voiceParams.f2BW; void voiceParams.f2Gain;
-    void voiceParams.f3Freq; void voiceParams.f3BW; void voiceParams.f3Gain;
-    void voiceParams.f4Freq; void voiceParams.f4BW; void voiceParams.f4Gain;
-    void voiceParams.masterGain;
-    void voiceParams.aspirationLevel;
-    void voiceParams.openQuotient;
-    void voiceParams.vibratoRate;
-    void voiceParams.vibratoExtent;
-    void voiceParams.jitterAmount;
-    void voiceParams.spectralTilt;
-    void voiceParams.muted;
+    void voiceParams.snapshot;
     bridge.syncParams();
   });
 
