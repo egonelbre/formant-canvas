@@ -3,6 +3,7 @@
   import { midiToHz } from '../audio/dsp/pitch-utils.ts';
   import HarmonicBars from './HarmonicBars.svelte';
   import FormantCurves from './FormantCurves.svelte';
+  import StrategyOverlayPiano from './StrategyOverlayPiano.svelte';
 
   // Piano range: C2 (MIDI 36) to B8 (MIDI 107) — extends to ~5kHz
   // so F2-F4 formant markers are visible on the keyboard
@@ -152,8 +153,8 @@
   let dragFormantIndex = $state(-1); // which formant (0-3) is being dragged
   let svgEl: SVGSVGElement | undefined = $state();
 
-  const FORMANT_FREQ_KEYS: ('f1Freq' | 'f2Freq' | 'f3Freq' | 'f4Freq')[] = ['f1Freq', 'f2Freq', 'f3Freq', 'f4Freq'];
-  const FORMANT_COLORS = ['#f97316', '#22c55e', '#3b82f6', '#a855f7'];
+  const FORMANT_FREQ_KEYS: ('f1Freq' | 'f2Freq' | 'f3Freq' | 'f4Freq' | 'f5Freq')[] = ['f1Freq', 'f2Freq', 'f3Freq', 'f4Freq', 'f5Freq'];
+  const FORMANT_COLORS = ['#f97316', '#22c55e', '#3b82f6', '#a855f7', '#ec4899'];
 
   // Typical frequency ranges for each formant in speech
   const FORMANT_RANGES: { min: number; max: number }[] = [
@@ -161,6 +162,7 @@
     { min: 600, max: 3000 },   // F2
     { min: 1500, max: 3500 },  // F3
     { min: 2500, max: 5000 },  // F4
+    { min: 3500, max: 6000 },  // F5
   ];
 
   function pointerToSvg(e: PointerEvent): { svgX: number; svgY: number } | null {
@@ -218,6 +220,10 @@
       // Clicking in harmonic region — start formant drag
       dragMode = 'formant';
       dragFormantIndex = findNearestFormant(pos.svgX);
+      // D-14: temporarily override strategy when dragging a locked formant
+      if (voiceParams.strategyMode === 'locked') {
+        voiceParams.strategyOverriding = true;
+      }
       const freq = xToFreq(pos.svgX);
       voiceParams[FORMANT_FREQ_KEYS[dragFormantIndex]] = Math.round(freq);
     } else {
@@ -245,6 +251,10 @@
   }
 
   function onPointerUp(e: PointerEvent) {
+    // D-14: release strategy override -- formant snaps back to strategy target
+    if (voiceParams.strategyOverriding) {
+      voiceParams.strategyOverriding = false;
+    }
     dragMode = 'none';
     dragFormantIndex = -1;
     svgEl?.releasePointerCapture(e.pointerId);
@@ -271,6 +281,9 @@
 
     <!-- Formant curves region (0-80px, on top of bars) -->
     <FormantCurves {freqToX} curveRegionHeight={BAR_REGION_HEIGHT} regionBottom={HARMONIC_REGION_HEIGHT} />
+
+    <!-- Strategy target overlay (D-07) -->
+    <StrategyOverlayPiano {freqToX} harmonicRegionHeight={HARMONIC_REGION_HEIGHT} svgHeight={SVG_HEIGHT} />
 
     <!-- Formant range band (shown during formant drag) -->
     {#if dragMode === 'formant' && dragFormantIndex >= 0}

@@ -5,6 +5,7 @@
   import { voiceParams } from '../audio/state.svelte.ts';
   import ChipGroup from './ChipGroup.svelte';
   import VowelChartOverlay from './VowelChartOverlay.svelte';
+  import StrategyOverlayVowel from './StrategyOverlayVowel.svelte';
 
   // SVG dimensions (per UI-SPEC)
   const SVG_WIDTH = 480;
@@ -89,6 +90,10 @@
   function onPointerDown(e: PointerEvent) {
     e.preventDefault();
     dragging = true;
+    // D-14: temporarily override strategy when dragging on locked vowel chart
+    if (voiceParams.strategyMode === 'locked') {
+      voiceParams.strategyOverriding = true;
+    }
     svgEl?.setPointerCapture(e.pointerId);
     updateFromPointer(e);
   }
@@ -101,6 +106,10 @@
 
   function onPointerUp(e: PointerEvent) {
     dragging = false;
+    // D-14: release strategy override -- formant snaps back
+    if (voiceParams.strategyOverriding) {
+      voiceParams.strategyOverriding = false;
+    }
     svgEl?.releasePointerCapture(e.pointerId);
   }
 
@@ -257,6 +266,9 @@
         aria-valuemin={200}
         aria-valuemax={1000}
       />
+
+      <!-- Strategy target overlay (D-08) -->
+      <StrategyOverlayVowel {f1Scale} {f2Scale} {handleX} {handleY} />
 
       <!-- Citation (D-18, VOWEL-05) -->
       <text

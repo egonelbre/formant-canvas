@@ -10,8 +10,8 @@
   let { freqToX, curveRegionHeight, regionBottom }: Props = $props();
 
   // Formant colors (per UI-SPEC)
-  const FORMANT_COLORS = ['#f97316', '#22c55e', '#3b82f6', '#a855f7']; // F1-F4
-  const FORMANT_LABELS = ['R1', 'R2', 'R3', 'R4'];
+  const FORMANT_COLORS = ['#f97316', '#22c55e', '#3b82f6', '#a855f7', '#ec4899']; // F1-F5
+  const FORMANT_LABELS = ['R1', 'R2', 'R3', 'R4', 'R5'];
 
   // Frequency range: C2 (~65 Hz) extended to 5kHz to show F2-F4
   const MIN_FREQ = 65;
