@@ -92,6 +92,9 @@ src/lib/
     engine.ts             # Pure function: computeTargets(strategy, f0, voiceType) => StrategyResult
     definitions.ts        # Strategy catalog: applicable ranges, ratio rules, descriptions
     auto-strategy.ts      # Heuristic: pickStrategy(f0, voiceType, vowel) => StrategyId
+    __tests__/
+      strategy-engine.test.ts  # Tests for engine + definitions
+      auto-strategy.test.ts    # Tests for auto-strategy heuristic
   audio/
     state.svelte.ts       # Extended: F5 fields, strategy state fields
     bridge.ts             # Extended: F5 BiquadFilterNode in parallel chain
@@ -460,13 +463,13 @@ const formantData = [
 ### Phase Requirements -> Test Map
 | Req ID | Behavior | Test Type | Automated Command | File Exists? |
 |--------|----------|-----------|-------------------|-------------|
-| STRAT-01 | Strategy engine computes correct targets for all 7 strategies | unit | `npx vitest run src/lib/strategies/engine.test.ts -t "computes"` | Wave 0 |
-| STRAT-01 | Singer's formant cluster adjusts F3+F4+F5 | unit | `npx vitest run src/lib/strategies/engine.test.ts -t "singer"` | Wave 0 |
-| STRAT-02 | Overlay targets computed correctly (visual-only, no state mutation) | unit | `npx vitest run src/lib/strategies/engine.test.ts -t "overlay"` | Wave 0 |
-| STRAT-03 | Locked mode: targets update when f0 changes | unit | `npx vitest run src/lib/strategies/engine.test.ts -t "locked"` | Wave 0 |
-| STRAT-03 | Range clamping at boundaries | unit | `npx vitest run src/lib/strategies/engine.test.ts -t "clamp"` | Wave 0 |
-| STRAT-04 | Drag override flag prevents strategy writes | unit | `npx vitest run src/lib/strategies/engine.test.ts -t "override"` | Wave 0 |
-| STRAT-05 | Strategy definitions have notation + description | unit | `npx vitest run src/lib/strategies/definitions.test.ts` | Wave 0 |
+| STRAT-01 | Strategy engine computes correct targets for all 7 strategies | unit | `npx vitest run src/lib/strategies/__tests__/strategy-engine.test.ts -t "computes"` | Wave 0 |
+| STRAT-01 | Singer's formant cluster adjusts F3+F4+F5 | unit | `npx vitest run src/lib/strategies/__tests__/strategy-engine.test.ts -t "singer"` | Wave 0 |
+| STRAT-02 | Overlay targets computed correctly (visual-only, no state mutation) | unit | `npx vitest run src/lib/strategies/__tests__/strategy-engine.test.ts -t "overlay"` | Wave 0 |
+| STRAT-03 | Locked mode: targets update when f0 changes | unit | `npx vitest run src/lib/strategies/__tests__/strategy-engine.test.ts -t "locked"` | Wave 0 |
+| STRAT-03 | Range clamping at boundaries | unit | `npx vitest run src/lib/strategies/__tests__/strategy-engine.test.ts -t "clamp"` | Wave 0 |
+| STRAT-04 | Drag override flag prevents strategy writes | manual | Manual-verified-only (see VALIDATION.md Manual-Only Verifications) | N/A |
+| STRAT-05 | Strategy definitions have notation + description | unit | `npx vitest run src/lib/strategies/__tests__/strategy-engine.test.ts -t "notation"` | Wave 0 |
 
 ### Sampling Rate
 - **Per task commit:** `npx vitest run --reporter=verbose`
@@ -474,9 +477,8 @@ const formantData = [
 - **Phase gate:** Full suite green before `/gsd-verify-work`
 
 ### Wave 0 Gaps
-- [ ] `src/lib/strategies/engine.test.ts` -- covers STRAT-01, STRAT-02, STRAT-03, STRAT-04
-- [ ] `src/lib/strategies/definitions.test.ts` -- covers STRAT-05
-- [ ] `src/lib/strategies/auto-strategy.test.ts` -- covers auto-strategy heuristic
+- [ ] `src/lib/strategies/__tests__/strategy-engine.test.ts` -- covers STRAT-01, STRAT-02, STRAT-03, STRAT-05 (engine + definitions tests)
+- [ ] `src/lib/strategies/__tests__/auto-strategy.test.ts` -- covers auto-strategy heuristic
 
 ## Security Domain
 
