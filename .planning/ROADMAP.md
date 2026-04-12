@@ -87,8 +87,8 @@ Plans:
   4. When a strategy is locked and the user drags a locked formant directly on the F1/F2 chart, the app responds consistently and predictably (drag is blocked with visible feedback or the strategy unlocks) and the rule is documented in-app
 **Plans:** 4 plans
 Plans:
-- [ ] 04-01-PLAN.md — TDD: Strategy engine pure functions (types, definitions, computeTargets, auto-strategy)
-- [ ] 04-02-PLAN.md — VoiceParams F5 extension + AudioBridge F5 + strategy state fields
+- [x] 04-01-PLAN.md — TDD: Strategy engine pure functions (types, definitions, computeTargets, auto-strategy)
+- [x] 04-02-PLAN.md — VoiceParams F5 extension + AudioBridge F5 + strategy state fields
 - [ ] 04-03-PLAN.md — Strategy panel UI + overlay components + locked mode + drag override
 - [ ] 04-04-PLAN.md — Human verification of complete vocal strategy system
 **UI hint**: yes
