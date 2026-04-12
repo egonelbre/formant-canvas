@@ -137,8 +137,8 @@ export class AudioBridge {
       this.formantGains[i].gain.setTargetAtTime(gain, now, 0.01);
     }
 
-    // Mute: gain 0 via fast ramp. Volume slider position preserved in store (D-14).
-    const effectiveGain = voiceParams.muted ? 0 : voiceParams.masterGain;
+    // Mute or stopped: gain 0. Volume slider position preserved in store (D-14).
+    const effectiveGain = (!voiceParams.playing || voiceParams.muted) ? 0 : voiceParams.masterGain;
     this.masterGain.gain.setTargetAtTime(effectiveGain, now, 0.005);
 
     // Forward worklet params via postMessage (f0, aspiration, OQ, vibrato, jitter, tilt)
