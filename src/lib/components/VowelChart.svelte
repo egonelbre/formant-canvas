@@ -115,6 +115,7 @@
 
   function onOverlaySelect(key: string) {
     overlayGroup = key === 'none' ? null : key;
+    if (key !== 'none') currentGroup = key as SpeakerGroup;
   }
 </script>
 
