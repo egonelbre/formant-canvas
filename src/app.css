@@ -1,0 +1,57 @@
+:root {
+  font-family: system-ui, -apple-system, sans-serif;
+  color: #e0e0e0;
+  background-color: #1a1a2e;
+}
+
+main {
+  max-width: 480px;
+  margin: 2rem auto;
+  padding: 1rem;
+  text-align: center;
+}
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.9rem;
+}
+
+.controls input[type="range"] {
+  width: 100%;
+  min-width: 200px;
+}
+
+button {
+  padding: 0.75rem 2rem;
+  font-size: 1.1rem;
+  border: 1px solid #4a4a6a;
+  border-radius: 6px;
+  background: #2a2a4a;
+  color: #e0e0e0;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #3a3a5a;
+}
+
+.readout {
+  text-align: left;
+  font-family: monospace;
+  font-size: 0.85rem;
+  color: #8a8aaa;
+  margin-top: 1rem;
+}
+
+.readout p {
+  margin: 0.2rem 0;
+}
