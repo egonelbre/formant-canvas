@@ -118,7 +118,7 @@ export class AudioBridge {
    * Uses setTargetAtTime for all AudioParam changes (AUDIO-06).
    */
   syncParams(): void {
-    if (!this.ctx || !this.workletNode) return;
+    if (!this.ctx || !this.workletNode || this.formants.length === 0 || !this.masterGain) return;
 
     const now = this.ctx.currentTime;
 
@@ -139,7 +139,7 @@ export class AudioBridge {
 
     // Mute: gain 0 via fast ramp. Volume slider position preserved in store (D-14).
     const effectiveGain = voiceParams.muted ? 0 : voiceParams.masterGain;
-    this.masterGain!.gain.setTargetAtTime(effectiveGain, now, 0.005);
+    this.masterGain.gain.setTargetAtTime(effectiveGain, now, 0.005);
 
     // Forward worklet params via postMessage (f0, aspiration, OQ, vibrato, jitter, tilt)
     this.workletNode.port.postMessage({
