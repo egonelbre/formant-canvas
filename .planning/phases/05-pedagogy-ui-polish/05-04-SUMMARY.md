@@ -2,7 +2,7 @@
 phase: 05-pedagogy-ui-polish
 plan: 04
 subsystem: ui
-tags: [svelte, multi-touch, pointer-events, touch-targets, piano-keyboard]
+tags: [svelte, multi-touch, pointer-events, touch-targets, piano-keyboard, layout, theme]
 
 requires:
   - phase: 05-pedagogy-ui-polish
@@ -10,86 +10,102 @@ requires:
     provides: Full CSS grid layout with expert mode and tooltips
 provides:
   - Multi-touch piano keyboard with Map<pointerId, midi> tracking
-  - Touch target enforcement (44px min) on ChipGroup chips
-  - Complete touch-action: none audit across all interactive surfaces
+  - Black & white projection-optimized theme
+  - Responsive grid layout with panels/charts/piano
+  - Per-region floating help buttons
+  - Logarithmic strategy chart scales
+  - Subscript f₀ notation throughout
 affects: []
 
 tech-stack:
   added: []
-  patterns: [multi-touch-pointer-tracking, 10-pointer-cap-dos-prevention]
+  patterns: [multi-touch-pointer-tracking, responsive-svg-charts, region-help]
 
 key-files:
-  created: []
+  created:
+    - src/lib/components/RegionHelp.svelte
   modified:
+    - src/App.svelte
+    - src/app.css
     - src/lib/components/PianoKeyboard.svelte
+    - src/lib/components/PianoHarmonics.svelte
+    - src/lib/components/VowelChart.svelte
+    - src/lib/components/TransportBar.svelte
+    - src/lib/components/PitchSection.svelte
+    - src/lib/components/PhonationMode.svelte
+    - src/lib/components/VoicePresets.svelte
+    - src/lib/components/StrategyPanel.svelte
     - src/lib/components/ChipGroup.svelte
+    - src/lib/components/HarmonicBars.svelte
+    - src/lib/components/FormantCurves.svelte
+    - src/lib/charts/R1StrategyChart.svelte
+    - src/lib/charts/R2StrategyChart.svelte
+    - src/lib/charts/strategy-chart-math.ts
+    - src/lib/strategies/definitions.ts
+    - src/lib/audio/state.svelte.ts
 
 key-decisions:
-  - "Multi-touch uses Map<pointerId, midiNote> with 10-pointer cap for DoS prevention (T-05-07)"
-  - "Last-touched pointer sets f0 in monophonic architecture -- no polyphonic support needed"
+  - "Black & white theme for projector readability"
+  - "Grid layout: panels left, vowel+R2+R1 stacked right, piano full-width bottom"
+  - "Single floating ? per region replaces per-control tooltips"
+  - "Logarithmic scales on strategy charts for intuitive musical spacing"
+  - "Auto strategy mode behaves as locked with auto-picked R1/R2"
+  - "Default voice preset: mezzo at 220 Hz"
+  - "R1/R2 labels used consistently instead of F1/F2"
 
 patterns-established:
-  - "Multi-touch pointer pattern: Map<pointerId, value> with setPointerCapture per pointer, immutable updates via new Map()"
+  - "RegionHelp: viewport-aware floating help with JS positioning"
+  - "Responsive SVG charts: bind:clientWidth/Height for container measurement"
 
-requirements-completed: [UI-06]
+requirements-completed: [UI-01, UI-02, UI-03, UI-04, UI-05, UI-06]
 
-duration: 1min
+duration: 45min
 completed: 2026-04-12
 ---
 
-# Phase 05 Plan 04: Multi-touch Piano and Touch Target Enforcement Summary
+# Phase 05 Plan 04: Multi-touch, Layout, Theme & Human Verification
 
-**Multi-touch piano keyboard with last-note-sets-f0 priority, 10-pointer DoS cap, and 44px touch target enforcement on chip buttons**
+**Multi-touch piano, B&W projection theme, responsive grid layout, floating help, log-scale charts, and human-verified UI**
 
 ## Status
 
-CHECKPOINT PENDING -- Task 1 (code) complete, Task 2 (human verification of complete Phase 5 interface) awaiting human review.
+COMPLETE — Human verification passed after iterative UI feedback.
 
 ## Performance
 
-- **Duration:** 1 min
-- **Started:** 2026-04-12T15:56:08Z
-- **Tasks:** 1/2 (checkpoint pending)
-- **Files modified:** 2
+- **Duration:** ~45 min (including iterative human feedback)
+- **Tasks:** 2/2 complete
+- **Files modified:** 19
 
 ## Accomplishments
-- Replaced single-pointer drag with multi-touch Map<pointerId, midiNote> tracking on PianoKeyboard
-- Added 10-pointer cap to prevent unbounded memory growth from synthetic touch events (T-05-07)
-- Visual feedback on all currently-touched keys via derived Set
-- Enforced 44px min-height on ChipGroup chip buttons for touch accessibility
-- Audited and confirmed touch-action: none already present on PianoHarmonics, VowelChart, and LabeledSlider
+
+### Multi-touch & Touch Targets
+- Multi-touch piano keyboard with Map<pointerId, midiNote> tracking, 10-pointer cap
+- 44px min-height touch targets on ChipGroup chips
+
+### Theme & Layout (from human verification feedback)
+- Black & white theme optimized for classroom projection
+- Grid layout: header | panels+piano left | vowel+R2+R1 right
+- Piano keys compact (48px), harmonics region enlarged (140px)
+- Controls in horizontal panel strip: pitch/vibrato, phonation, strategy
+- Strategy/R1/R2 merged into single panel column
+
+### Charts & Diagrams
+- R1/R2 strategy charts: responsive (measure container), logarithmic scales
+- Vowel chart: fills container, inside axis labels, no overlay, combined corner label
+- R1 at bottom, R2 in middle, heights proportional to octave span
+- Diagonal labels at 75% along line, 13px bold for readability
+- Subscript f₀ notation throughout all labels
+
+### Help & UX
+- RegionHelp component: floating ? per region with viewport-aware JS positioning
+- Help buttons on: pitch, formants, phonation, strategy, vowel chart, R1, R2
+- Formant BW sliders moved to pitch panel (expert mode)
+- Default voice preset: mezzo at 220 Hz
 
 ## Task Commits
 
-Each task was committed atomically:
-
-1. **Task 1: Multi-touch piano + touch target enforcement** - `621ad2f` (feat)
-2. **Task 2: Human verification** - PENDING CHECKPOINT
-
-## Files Created/Modified
-- `src/lib/components/PianoKeyboard.svelte` - Multi-touch pointer tracking with Map, 10-pointer cap, visual feedback on touched keys
-- `src/lib/components/ChipGroup.svelte` - Added min-height: 44px for touch target compliance
-
-## Decisions Made
-- Multi-touch uses immutable Map updates (new Map(activePointers)) for Svelte reactivity
-- 10-pointer cap chosen as reasonable limit -- prevents DoS while allowing all 10 fingers
-- Last-touched pointer sets f0 per monophonic architecture -- on pointer-up, last remaining pointer takes over
-
-## Deviations from Plan
-
-None - plan executed exactly as written.
-
-## Issues Encountered
-None
-
-## User Setup Required
-None - no external service configuration required.
-
-## Next Phase Readiness
-- Awaiting human verification checkpoint (Task 2) to complete Phase 5
-
----
-*Phase: 05-pedagogy-ui-polish*
-*Checkpoint pending: 2026-04-12*
+1. **Task 1: Multi-touch piano + touch targets** — `621ad2f`
+2. **Task 2: Human verification** — multiple iterative commits addressing feedback
 
 ## Self-Check: PASSED
