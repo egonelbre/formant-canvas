@@ -4,6 +4,11 @@
   import { QWERTY_MAP } from '../data/qwerty-map.ts';
   import PianoKeyboard from './PianoKeyboard.svelte';
 
+  interface Props {
+    pressedKeys?: Set<string>;
+  }
+  let { pressedKeys = new Set() }: Props = $props();
+
   let showQwertyLabels = $state(false);
 
   // Compute which MIDI note is closest to current f0 for highlight
@@ -49,6 +54,7 @@
       startMidi={48}
       endMidi={71}
       {highlightMidi}
+      {pressedKeys}
       showLabels={showQwertyLabels}
       qwertyMap={QWERTY_MAP}
       onkeyclick={handleKeyClick}
