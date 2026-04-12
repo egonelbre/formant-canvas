@@ -17,6 +17,7 @@
  * @returns Glottal volume velocity sample, range [0, 1]
  */
 function rosenbergSample(phase: number, openQuotient: number): number {
+  if (phase < 0 || phase >= 1) return 0; // guard matching rosenberg.ts (WR-05)
   const Tn = openQuotient;
   const Tp = 0.4 * Tn;
 
@@ -171,10 +172,10 @@ class GlottalProcessor extends AudioWorkletProcessor {
       const noise = (Math.random() * 2 - 1) * this.aspirationLevel;
       channel[i] = tiltedGlottal + noise;
 
-      // Advance phase
+      // Advance phase — use Math.floor to handle phaseIncrement > 1 (WR-05)
       this.phase += phaseIncrement;
       if (this.phase >= 1.0) {
-        this.phase -= 1.0;
+        this.phase -= Math.floor(this.phase);
         // Per-cycle jitter (D-08): new random offset each glottal cycle
         this.jitterOffset = (Math.random() * 2 - 1) * this.jitterAmount * this.f0 * 0.03;
       }
