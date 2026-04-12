@@ -181,10 +181,11 @@
         stroke-width={isActive ? 2 : 1}
         opacity={isActive ? 1 : 0.4}
       />
-      <!-- Label at right endpoint -->
+      <!-- Label inside, near right end of line -->
       <text
-        x={xScale(d.x2) + 3}
-        y={yScale(d.y2) + 4}
+        x={xScale(d.x2) - 8}
+        y={yScale(d.y2) - 4}
+        text-anchor="end"
         font-size="10"
         fill={isActive ? 'var(--color-accent)' : '#333333'}
         opacity={isActive ? 1 : 0.6}
