@@ -395,19 +395,19 @@ export const TOOLTIPS: Record<string, { text: string; expert?: string }> = {
 | A5 | Tooltip pedagogical text content is appropriate | Code Examples | Text may need domain expert review |
 | A6 | Grid column widths (200-240px sidebar, 240-300px charts) are appropriate for 1024x700 | Architecture Patterns | May need tuning -- 1024 - 240 - 300 = 484px for harmonics, tight but workable |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Shared Y-axis for panels A/B/C**
+1. **Shared Y-axis for panels A/B/C** _(RESOLVED: independent Y scales per panel with aligned panel widths -- Plan 02 implements separate R1 200-1200 Hz and R2 600-3000 Hz Y domains; D-13 confirms independent axes)_
    - What we know: D-03 says the three right panels share a vertical frequency axis for visual coherence
    - What's unclear: F1 range (200-1000 Hz) and F2 range (600-3000 Hz) differ significantly. The vowel chart has two axes (F1 and F2). Sharing a single Y scale across all three panels requires either: (a) different Y ranges per panel but visually aligned gridlines, or (b) a unified Hz scale that accommodates all three
    - Recommendation: Use independent Y scales per panel but align the panel widths and draw consistent gridlines. The "shared" axis means spatial alignment, not identical scale range
 
-2. **Vibrato waveform visual (D-06)**
+2. **Vibrato waveform visual (D-06)** _(RESOLVED: static SVG sine waveform -- Plan 01 Task 2 creates VibratoVisual.svelte as a static one-cycle sine preview with rate/extent annotations)_
    - What we know: User wants a vibrato waveform visual in the vibrato controls section
    - What's unclear: Whether this means a static waveform preview (showing the LFO shape) or a live animated display of the vibrato modulation
    - Recommendation: Static SVG showing one cycle of the vibrato waveform (sine) with rate/extent parameters annotated. Live animation adds complexity for minimal pedagogy value
 
-3. **Pitch slider vs piano-only pitch control (D-15)**
+3. **Pitch slider vs piano-only pitch control (D-15)** _(RESOLVED: pitch slider added to sidebar -- Plan 03 Task 1 places PitchSection in the sidebar with a dedicated slider)_
    - What we know: D-15 lists "Pitch slider" as one of the 7 primary controls. Currently pitch is set via QWERTY or piano keyboard click
    - What's unclear: Whether a dedicated pitch slider is needed in addition to the piano
    - Recommendation: Add a horizontal pitch slider in the controls sidebar. It provides fine-grained f0 control that complements the discrete piano keys
