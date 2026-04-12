@@ -182,11 +182,13 @@
         stroke-width={isActive ? 2 : 1}
         opacity={isActive ? 1 : 0.4}
       />
-      <!-- Label inside, near right end of line -->
+      <!-- Label along diagonal, 75% from start to end -->
+      {@const lx = xScale(d.x1) + (xScale(d.x2) - xScale(d.x1)) * 0.75}
+      {@const ly = yScale(d.y1) + (yScale(d.y2) - yScale(d.y1)) * 0.75}
       <text
-        x={xScale(d.x2) - 8}
-        y={yScale(d.y2) - 4}
-        text-anchor="end"
+        x={lx + 4}
+        y={ly - 4}
+        text-anchor="start"
         font-size="10"
         fill={isActive ? 'var(--color-accent)' : '#333333'}
         opacity={isActive ? 1 : 0.6}
