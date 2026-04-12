@@ -184,11 +184,15 @@
         text-anchor="start" font-size="10" font-weight="600" fill="var(--color-text-secondary)" opacity="0.5"
       >F1 Hz</text>
 
-      <!-- Combined corner label for F1=200 / F2=600 -->
+      <!-- Corner label: F1=200 above, F2=600 below -->
+      <text
+        x={4} y={PLOT_HEIGHT - 14}
+        text-anchor="start" font-size="10" fill="var(--color-text-secondary)" opacity="0.6"
+      >200</text>
       <text
         x={4} y={PLOT_HEIGHT - 4}
         text-anchor="start" font-size="10" fill="var(--color-text-secondary)" opacity="0.6"
-      >200/600</text>
+      >600</text>
 
       <!-- Hillenbrand ellipses -->
       {#each HILLENBRAND_VOWELS as vowel (vowel.ipa)}
