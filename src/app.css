@@ -33,28 +33,24 @@
   background-color: var(--color-bg);
 }
 
-:global(html, body) {
+* {
+  box-sizing: border-box;
+}
+
+html, body {
   margin: 0;
   padding: 0;
   height: 100dvh;
   height: 100vh;
   overflow: hidden;
-}
-
-* {
-    box-sizing: border-box;
-}
-html, body {
-    margin: 0;
-    padding: 0;
-    /* Prevent double-tap zoom on tablet */
-    touch-action: manipulation;
+  touch-action: manipulation;
+  overscroll-behavior: none;
 }
 
 .app-grid {
+  position: fixed;
+  inset: 0;
   display: grid;
-  height: 100dvh;
-  height: 100vh;
   grid-template-rows: auto 1fr 30vh;
   grid-template-columns: 1fr 8cm;
   grid-template-areas:
