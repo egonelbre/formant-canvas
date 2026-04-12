@@ -118,13 +118,6 @@
 </script>
 
 <div class="vowel-chart-section" bind:this={containerEl} bind:clientWidth={cWidth} bind:clientHeight={cHeight}>
-  {#if expertMode}
-    <div class="formant-readouts">
-      <span class="readout">R1: {Math.round(voiceParams.f1Freq)} Hz</span>
-      <span class="readout">R2: {Math.round(voiceParams.f2Freq)} Hz</span>
-    </div>
-  {/if}
-
   <svg
     bind:this={svgEl}
     class="vowel-chart"
@@ -264,16 +257,5 @@
     min-height: 0;
   }
 
-  .formant-readouts {
-    display: flex;
-    gap: var(--spacing-md, 16px);
-    justify-content: center;
-  }
-
-  .readout {
-    font-family: monospace;
-    font-size: 13px;
-    color: var(--color-text-secondary);
-  }
 
 </style>

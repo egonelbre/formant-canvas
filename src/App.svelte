@@ -134,6 +134,11 @@
       <VibratoVisual rate={voiceParams.vibratoRate} extent={voiceParams.vibratoExtent} />
       {#if expertMode}
         <div class="expert-formant-bw">
+          <h2 class="section-heading">Formants</h2>
+          <div class="formant-readouts">
+            <span class="readout">R1: {Math.round(voiceParams.f1Freq)} Hz</span>
+            <span class="readout">R2: {Math.round(voiceParams.f2Freq)} Hz</span>
+          </div>
           <LabeledSlider label="R1 BW" min={30} max={200} step={1}
             value={voiceParams.f1BW} unit="Hz" decimals={0}
             onchange={(v) => { voiceParams.f1BW = v; }} />
@@ -292,5 +297,14 @@
     display: flex;
     flex-direction: column;
     gap: var(--spacing-xs);
+  }
+  .formant-readouts {
+    display: flex;
+    gap: var(--spacing-sm);
+  }
+  .formant-readouts .readout {
+    font-family: monospace;
+    font-size: 12px;
+    color: var(--color-text-secondary);
   }
 </style>
