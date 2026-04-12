@@ -22,7 +22,7 @@ The two signature visualizations come online — piano keyboard with live harmon
 - **D-04:** 5-octave range: C2-B6 (~65 Hz to ~1976 Hz). Shows harmonics up to ~2 kHz with formant overlays partially visible
 - **D-05:** Harmonic amplitudes shown as vertical bars rising above each key, height proportional to amplitude after analytic formant filter response evaluation
 - **D-06:** At least 12 overtone markers drawn on the correct keys
-- **D-07:** F1-F4 center frequencies drawn as overlay markers on the piano (distinct color/shape from harmonics)
+- **D-07:** Formant filter response curves (F1-F4) drawn as continuous curves overlaid on the piano, so the spectral envelope shape is visible together with the harmonic bars. Each formant curve in a distinct color
 - **D-08:** Current f0 highlighted on the piano key
 
 ### Vowel Preset Interaction
@@ -48,7 +48,7 @@ The two signature visualizations come online — piano keyboard with live harmon
 - Harmonic bar width, color, and spacing
 - F3/F4 tracking behavior when F1/F2 are dragged
 - Vowel region hit-testing algorithm
-- Formant overlay marker style on piano (triangles, lines, or dots)
+- Formant curve rendering style (line thickness, opacity, whether curves extend beyond visible piano range)
 - Whether voice-type overlay switch is a toggle, dropdown, or chip group
 
 </decisions>
