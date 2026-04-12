@@ -5,8 +5,16 @@
   import type { SpeakerGroup, HillenbrandVowel } from '../data/hillenbrand.ts';
   import { voiceParams } from '../audio/state.svelte.ts';
   import ChipGroup from './ChipGroup.svelte';
+  import LabeledSlider from './LabeledSlider.svelte';
+  import Tooltip from './Tooltip.svelte';
+  import { TOOLTIPS } from '../data/tooltips.ts';
   import VowelChartOverlay from './VowelChartOverlay.svelte';
   import StrategyOverlayVowel from './StrategyOverlayVowel.svelte';
+
+  interface Props {
+    expertMode?: boolean;
+  }
+  let { expertMode = false }: Props = $props();
 
   // SVG dimensions (per UI-SPEC)
   const SVG_WIDTH = 480;
@@ -145,7 +153,17 @@
 </script>
 
 <div class="vowel-chart-section section">
-  <h2 class="section-heading">Vowel Space</h2>
+  <div class="section-header-row">
+    <h2 class="section-heading">Vowel Space</h2>
+    <Tooltip text={TOOLTIPS.vowelChart.text} expert={TOOLTIPS.vowelChart.expert} {expertMode} />
+  </div>
+
+  {#if expertMode}
+    <div class="formant-readouts">
+      <span class="readout">F1: {Math.round(voiceParams.f1Freq)} Hz</span>
+      <span class="readout">F2: {Math.round(voiceParams.f2Freq)} Hz</span>
+    </div>
+  {/if}
 
   <!-- Voice-type overlay selector (D-17) -->
   <div class="overlay-selector">
@@ -296,6 +314,23 @@
       >Data: Hillenbrand et al. (1995)</text>
     </g>
   </svg>
+
+  {#if expertMode}
+    <div class="expert-formant-params">
+      <LabeledSlider label="F1 BW" min={30} max={200} step={1}
+        value={voiceParams.f1BW} unit="Hz" decimals={0}
+        onchange={(v) => { voiceParams.f1BW = v; }} />
+      <LabeledSlider label="F2 BW" min={30} max={250} step={1}
+        value={voiceParams.f2BW} unit="Hz" decimals={0}
+        onchange={(v) => { voiceParams.f2BW = v; }} />
+      <LabeledSlider label="F3 BW" min={50} max={300} step={1}
+        value={voiceParams.f3BW} unit="Hz" decimals={0}
+        onchange={(v) => { voiceParams.f3BW = v; }} />
+      <LabeledSlider label="F4 BW" min={50} max={500} step={1}
+        value={voiceParams.f4BW} unit="Hz" decimals={0}
+        onchange={(v) => { voiceParams.f4BW = v; }} />
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -321,5 +356,29 @@
     font-weight: 600;
     color: var(--color-text-secondary, #8a8aaa);
     white-space: nowrap;
+  }
+
+  .section-header-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm, 8px);
+  }
+
+  .formant-readouts {
+    display: flex;
+    gap: var(--spacing-md, 16px);
+  }
+
+  .readout {
+    font-family: monospace;
+    font-size: 14px;
+    color: var(--color-text-secondary, #8a8aaa);
+  }
+
+  .expert-formant-params {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-sm, 8px);
+    padding: var(--spacing-sm, 8px);
   }
 </style>

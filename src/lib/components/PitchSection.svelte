@@ -1,6 +1,13 @@
 <script lang="ts">
   import { voiceParams } from '../audio/state.svelte.ts';
   import { formatPitchReadout } from '../audio/dsp/pitch-utils.ts';
+  import Tooltip from './Tooltip.svelte';
+  import { TOOLTIPS } from '../data/tooltips.ts';
+
+  interface Props {
+    expertMode?: boolean;
+  }
+  let { expertMode = false }: Props = $props();
 
   // Parse readout into parts for accent coloring on note name
   let readoutParts = $derived.by(() => {
@@ -16,7 +23,10 @@
 </script>
 
 <section class="pitch-section">
-  <h2 class="section-heading">Pitch</h2>
+  <div class="section-header-row">
+    <h2 class="section-heading">Pitch</h2>
+    <Tooltip text={TOOLTIPS.pitch.text} expert={TOOLTIPS.pitch.expert} {expertMode} />
+  </div>
 
   <div class="pitch-readout">
     <span>{readoutParts.hz}</span>
@@ -40,6 +50,12 @@
     line-height: 1.2;
     color: var(--color-text, #e0e0e0);
     margin: 0;
+  }
+
+  .section-header-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm, 8px);
   }
 
   .pitch-readout {

@@ -1,10 +1,14 @@
 <script lang="ts">
   import { voiceParams } from '../audio/state.svelte.ts';
   import LabeledSlider from './LabeledSlider.svelte';
+
+  interface Props {
+    expertMode?: boolean;
+  }
+  let { expertMode = false }: Props = $props();
 </script>
 
-<section class="expression-section">
-  <h2 class="section-heading">Expression</h2>
+<div class="expression-controls">
   <div class="sliders">
     <LabeledSlider
       label="Vibrato Rate"
@@ -26,32 +30,26 @@
       decimals={0}
       onchange={(v) => { voiceParams.vibratoExtent = v; }}
     />
-    <LabeledSlider
-      label="Jitter"
-      min={0}
-      max={1}
-      step={0.01}
-      value={voiceParams.jitterAmount}
-      unit=""
-      decimals={2}
-      onchange={(v) => { voiceParams.jitterAmount = v; }}
-    />
+    {#if expertMode}
+      <LabeledSlider
+        label="Jitter"
+        min={0}
+        max={1}
+        step={0.01}
+        value={voiceParams.jitterAmount}
+        unit=""
+        decimals={2}
+        onchange={(v) => { voiceParams.jitterAmount = v; }}
+      />
+    {/if}
   </div>
-</section>
+</div>
 
 <style>
-  .expression-section {
+  .expression-controls {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-md, 16px);
-  }
-
-  .section-heading {
-    font-size: 16px;
-    font-weight: 600;
-    line-height: 1.2;
-    color: var(--color-text, #e0e0e0);
-    margin: 0;
   }
 
   .sliders {
