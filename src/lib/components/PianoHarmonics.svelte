@@ -25,6 +25,11 @@
     return BLACK_NOTE_INDICES.has(((midi % 12) + 12) % 12);
   }
 
+  // Invariant: START_MIDI must be a white key for black-key layout to work correctly
+  if (isBlackKey(START_MIDI)) {
+    throw new Error(`START_MIDI ${START_MIDI} must be a white key`);
+  }
+
   // Compute white keys array with positions
   let whiteKeys = $derived.by(() => {
     const keys: { midi: number; x: number }[] = [];
