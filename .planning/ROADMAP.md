@@ -2,7 +2,7 @@
 
 ## Overview
 
-Formant Canvas is built outward from a single proof: move a control, hear the voice change. Phase 1 delivers that minimum closed loop end-to-end (Svelte 5 store → AudioWorklet → BiquadFilterNode formant chain → one slider) so the architecture is verified before any visualization code is written. Phases 2 and 3 then fill out the audio-side controls (pitch, vibrato, transport, presets) and the two signature visualizations (piano harmonics, F1/F2 vowel chart), at which point the Core Value — linked updates across audio and every view — becomes testable and is verified as a hard gate at the end of Phase 3. Phase 4 layers vocal strategies on top of that linked substrate (strategies require audio, piano, and F1/F2 all correct before bugs are isolatable). Phase 5 adds persistence (presets, URL sharing, undo/redo). Phase 6 is the pedagogy-UI phase: progressive disclosure, tooltips, expert mode, accessibility, cross-browser polish — not "polish" in the decorative sense but the layer that makes the tool usable by non-experts, budgeted accordingly. Every phase delivers something audibly or visually verifiable; no phase exists purely for plumbing.
+Formant Canvas is built outward from a single proof: move a control, hear the voice change. Phase 1 delivers that minimum closed loop end-to-end (Svelte 5 store → AudioWorklet → BiquadFilterNode formant chain → one slider) so the architecture is verified before any visualization code is written. Phases 2 and 3 then fill out the audio-side controls (pitch, vibrato, transport, presets) and the two signature visualizations (piano harmonics, F1/F2 vowel chart), at which point the Core Value — linked updates across audio and every view — becomes testable and is verified as a hard gate at the end of Phase 3. Phase 4 layers vocal strategies on top of that linked substrate (strategies require audio, piano, and F1/F2 all correct before bugs are isolatable). Phase 5 is the pedagogy-UI phase: progressive disclosure, tooltips, expert mode, accessibility, cross-browser polish — not "polish" in the decorative sense but the layer that makes the tool usable by non-experts, budgeted accordingly. Persistence features (presets, URL sharing, undo/redo) are deferred to v2. Every phase delivers something audibly or visually verifiable; no phase exists purely for plumbing.
 
 ## Phases
 
@@ -16,8 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 2: Voice Controls & Expression** - Pitch, vibrato/jitter, phonation control, transport, and voice/phonation presets driving the engine
 - [ ] **Phase 3: Linked Visualizations (Piano + F1/F2)** - Piano harmonics view, F1/F2 vowel chart with Hillenbrand background and drag-to-tune, formant range overlays; LINK-01/02/03 verified
 - [ ] **Phase 4: Vocal Strategies** - R1:f0, R1:2f0, R1:3f0, R2:2f0, R2:3f0, singer's-formant cluster with overlay and auto-tune modes
-- [ ] **Phase 5: Presets, Sharing, Undo/Redo** - URL-encoded state sharing, 32-step history, expanded preset system
-- [ ] **Phase 6: Pedagogy UI & Polish** - Progressive disclosure, tooltips, expert mode, responsive layout, touch/pointer support, cross-browser hardening
+- [ ] **Phase 5: Pedagogy UI & Polish** - Progressive disclosure, tooltips, expert mode, responsive layout, touch/pointer support, cross-browser hardening
 
 ## Phase Details
 
@@ -93,19 +92,9 @@ Plans:
 - [x] 04-04-PLAN.md — Human verification of complete vocal strategy system
 **UI hint**: yes
 
-### Phase 5: Presets, Sharing, Undo/Redo
-**Goal**: The full state model — including strategies — becomes persistable and shareable. Users can capture any configuration as a URL, send it to someone else, reopen it exactly, and step backward and forward through at least 32 state changes.
-**Depends on**: Phase 4
-**Requirements**: SHARE-01, SHARE-02
-**Success Criteria** (what must be TRUE):
-  1. User can configure any combination of voice, vowel, phonation, vibrato, jitter, and strategy, click a share action, and receive a URL that when opened in a new tab restores the exact same state (audio + all views)
-  2. User can undo and redo at least the last 32 state changes via both keyboard shortcuts and visible UI controls, and every undo/redo is reflected in audio and all views within one animation frame
-**Plans**: TBD
-**UI hint**: yes
-
-### Phase 6: Pedagogy UI & Polish
+### Phase 5: Pedagogy UI & Polish
 **Goal**: The app becomes usable by a first-time voice student, not just by its developer. Progressive disclosure keeps the default view calm, tooltips explain every primary control in plain language, expert mode exposes research-grade parameters, the layout is responsive and touch-friendly, and cross-browser behavior is hardened. This is a full phase of work, not a decorative pass.
-**Depends on**: Phase 5
+**Depends on**: Phase 4
 **Requirements**: UI-01, UI-02, UI-03, UI-04, UI-05, UI-06
 **Success Criteria** (what must be TRUE):
   1. User sees at most 7 primary controls in the default view; advanced parameters (Rd, OQ, spectral tilt, individual formant bandwidths) live behind an "Advanced" / "Expert" disclosure
@@ -113,13 +102,18 @@ Plans:
   3. User sees a clean modern aesthetic with readable typography, proper spacing, and at minimum a working dark theme
   4. User can use the app in a 1024×700 desktop browser window without horizontal scrolling or obscured controls
   5. User can drag every visual handle (F1/F2 marker, piano keys, sliders) with touch or pen on a tablet, because all draggable elements use Pointer Events with `touch-action: none`
-**Plans**: TBD
+**Plans:** 4 plans
+Plans:
+- [ ] 05-01-PLAN.md — Tooltip data + strategy chart math + Tooltip/VibratoVisual components
+- [ ] 05-02-PLAN.md — R1 and R2 Sundberg-style strategy chart SVG components
+- [ ] 05-03-PLAN.md — CSS grid layout rewrite + expert mode + progressive disclosure + tooltip wiring
+- [ ] 05-04-PLAN.md — Multi-touch piano + touch enforcement + human verification
 **UI hint**: yes
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -127,10 +121,15 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 2. Voice Controls & Expression | 0/6 | Planning complete | - |
 | 3. Linked Visualizations | 0/4 | Planning complete | - |
 | 4. Vocal Strategies | 0/4 | Planning complete | - |
-| 5. Presets, Sharing, Undo/Redo | 0/TBD | Not started | - |
-| 6. Pedagogy UI & Polish | 0/TBD | Not started | - |
+| 5. Pedagogy UI & Polish | 0/4 | Planning complete | - |
+
+## Deferred to v2
+
+### Presets, Sharing, Undo/Redo
+**Requirements**: SHARE-01, SHARE-02
+**Description**: URL-encoded state sharing, 32-step undo/redo history, expanded preset system. The full state model — including strategies — becomes persistable and shareable. Users can capture any configuration as a URL, send it to someone else, reopen it exactly, and step backward and forward through at least 32 state changes.
 
 ---
 *Roadmap created: 2026-04-11*
-*Granularity: Standard (5-8 phases) → 6 phases derived from requirements*
-*Coverage: 42/42 v1 requirements mapped*
+*Granularity: Standard (5-8 phases) → 5 phases derived from requirements (SHARE-01, SHARE-02 deferred to v2)*
+*Coverage: 40/42 v1 requirements mapped*
