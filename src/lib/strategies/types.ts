@@ -25,6 +25,7 @@ export interface StrategyResult {
   targets: StrategyTargets;
   inRange: boolean;
   clamped: boolean;
+  clampedTargets: { f1: boolean; f2: boolean; f3: boolean; f4: boolean; f5: boolean };
 }
 
 /** What the auto-strategy heuristic recommends */

@@ -67,8 +67,8 @@ describe('computeTargets', () => {
   it('singer formant at 200 Hz bass returns f3/f4/f5 cluster', () => {
     const result = computeTargets(null, null, true, 200, 'bass');
     expect(result.targets.f3).toBe(2184);
-    expect(result.targets.f4).toBe(2384);
-    expect(result.targets.f5).toBe(2684);
+    expect(result.targets.f4).toBe(2500); // clamped from 2384 to f4 min
+    expect(result.targets.f5).toBe(3500); // clamped from 2684 to f5 min
     expect(result.targets.f1).toBeNull();
     expect(result.targets.f2).toBeNull();
     expect(result.inRange).toBe(true);
@@ -78,7 +78,7 @@ describe('computeTargets', () => {
     const result = computeTargets(null, null, true, 200, 'tenor');
     expect(result.targets.f3).toBe(2505);
     expect(result.targets.f4).toBe(2705);
-    expect(result.targets.f5).toBe(3005);
+    expect(result.targets.f5).toBe(3500); // clamped from 3005 to f5 min
   });
 
   // Combined: R1 + singer's formant
@@ -86,8 +86,8 @@ describe('computeTargets', () => {
     const result = computeTargets('r1-2f0', null, true, 200, 'bass');
     expect(result.targets.f1).toBe(400);
     expect(result.targets.f3).toBe(2184);
-    expect(result.targets.f4).toBe(2384);
-    expect(result.targets.f5).toBe(2684);
+    expect(result.targets.f4).toBe(2500); // clamped from 2384 to f4 min
+    expect(result.targets.f5).toBe(3500); // clamped from 2684 to f5 min
   });
 
   // Clamping tests

@@ -28,6 +28,7 @@ export function computeTargets(
   const targets: StrategyTargets = { f1: null, f2: null, f3: null, f4: null, f5: null };
   let inRange = true;
   let clamped = false;
+  const clampedTargets = { f1: false, f2: false, f3: false, f4: false, f5: false };
 
   // R1 strategy
   if (r1) {
@@ -42,7 +43,7 @@ export function computeTargets(
       case 'r1-3f0': raw = 3 * f0; break;
     }
     const f1 = clamp(raw, FORMANT_BOUNDS.f1.min, FORMANT_BOUNDS.f1.max);
-    if (f1 !== raw) clamped = true;
+    if (f1 !== raw) { clamped = true; clampedTargets.f1 = true; }
     targets.f1 = f1;
   }
 
@@ -58,7 +59,7 @@ export function computeTargets(
       case 'r2-3f0': raw = 3 * f0; break;
     }
     const f2 = clamp(raw, FORMANT_BOUNDS.f2.min, FORMANT_BOUNDS.f2.max);
-    if (f2 !== raw) clamped = true;
+    if (f2 !== raw) { clamped = true; clampedTargets.f2 = true; }
     targets.f2 = f2;
   }
 
@@ -72,5 +73,5 @@ export function computeTargets(
     if (f0 > 659) inRange = false;
   }
 
-  return { targets, inRange, clamped };
+  return { targets, inRange, clamped, clampedTargets };
 }

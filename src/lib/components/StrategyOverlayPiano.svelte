@@ -89,7 +89,7 @@
         fill={OVERLAY_COLOR}
         opacity={lineOpacity}
       >{line.label}</text>
-      {#if clamped}
+      {#if strategyTargets.clampedTargets[line.key as keyof typeof strategyTargets.clampedTargets]}
         <circle
           cx={line.x}
           cy={10}
