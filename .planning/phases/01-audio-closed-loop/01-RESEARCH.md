@@ -448,17 +448,15 @@ Bandwidth values are typical for male modal phonation. Higher formants have wide
 | A5 | `new URL('./file.ts', import.meta.url)` works for AudioWorklet in Vite 8 | Pitfalls | If broken, fallback to .js worklet file or vite-plugin-worker |
 | A6 | Vowel formant targets for /a/ and /i/ from Peterson & Barney | Code Examples | Wrong targets = wrong vowel sound; easily corrected from literature |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Vite 8 AudioWorklet TS transpilation**
+1. **Vite 8 AudioWorklet TS transpilation** (RESOLVED — conditional)
    - What we know: `new URL('./file.ts', import.meta.url)` was the recommended pattern in Vite 5-6. Vite issue #9952 documented `?url` not transpiling TS.
-   - What's unclear: Whether Vite 8 has improved this or if the pattern still applies.
-   - Recommendation: Try `new URL` pattern first; if it fails, use a `.js` worklet or add `vite-plugin-worker`. Test early in scaffolding.
+   - Resolution: Plan 01-02 uses `new URL` pattern as primary approach. Task 1 includes an explicit fallback: if Vite 8 does not transpile the .ts worklet file, rename to .js and strip type annotations. Task 2 (AudioBridge) wraps `addModule()` in try/catch to attempt .ts first, then fall back to .js. Either path produces a working worklet. Risk is fully mitigated.
 
-2. **Anti-aliasing glottal pulse at high f0**
-   - What we know: STATE.md flags this as a concern. At f0 > 300 Hz, naive pulse generation can alias.
-   - What's unclear: Whether this matters for Phase 1 (default male 120 Hz).
-   - Recommendation: Defer. At 120 Hz f0, aliasing is negligible. Add band-limited pulse generation in Phase 2 when female/child voices are needed.
+2. **Anti-aliasing glottal pulse at high f0** (RESOLVED — deferred by design)
+   - What we know: At f0 > 300 Hz, naive pulse generation can alias.
+   - Resolution: Phase 1 uses male modal voice at 120 Hz f0 (per D-01). At this frequency, aliasing is negligible. Band-limited pulse generation is deferred to Phase 2 when female/child voices are added. No action needed for Phase 1.
 
 ## Environment Availability
 
