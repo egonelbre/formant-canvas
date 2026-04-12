@@ -344,22 +344,13 @@ function freqToPixelX(freq: number, svgWidth: number): number {
 | A3 | 200 sample points are sufficient for smooth formant curves on a 490px-wide piano | Pitfall 6 | Curves may look jagged for very narrow bandwidths. Easy to increase at runtime. |
 | A4 | `d3-scale` v4 `scaleLog().invert()` works correctly for pointer-to-Hz conversion | Architecture Patterns (Pattern 3) | Would need manual inverse calculation. Very low risk -- `invert()` is a core d3-scale feature. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Exact Hillenbrand numeric values**
-   - What we know: 12 vowels (i, I, e, E, ae, a, aw, o, U, u, V, er), 3+ speaker groups, F1/F2/F3 means and SDs
-   - What's unclear: Exact numbers need to be transcribed from the original paper Table V or the Hillenbrand website data files
-   - Recommendation: Transcribe from the paper. The implementer should use the data at http://homepages.wmich.edu/~hillenbr/voweldata.html or the published Table V. Values can be hard-coded in `hillenbrand.ts` as they are static reference data.
+1. **Exact Hillenbrand numeric values** — RESOLVED: Plan 03-01 Task 1 embeds the full numeric dataset (12 vowels × 3 speaker groups with F1/F2/F3 means and SDs) directly in the `hillenbrand.ts` action. Values transcribed from Hillenbrand et al. (1995) Table V / website data files.
 
-2. **F4 values in Hillenbrand data**
-   - What we know: Hillenbrand dataset includes F1, F2, F3. F4 may not be available.
-   - What's unclear: Whether F4 means are in the dataset
-   - Recommendation: If F4 is not available, use a fixed F4 estimate (typically ~3500 Hz for men, ~4200 Hz for women/children, already present in `voice-presets.ts`). Keep F4 unchanged when clicking vowel presets if no data exists.
+2. **F4 values in Hillenbrand data** — RESOLVED: F4 is not in the Hillenbrand dataset. Plan 03-02 Task 1 keeps F4 unchanged from `voice-presets.ts` values when clicking vowel presets. F4 stays at current value on drag (per D-13).
 
-3. **Piano x-position mapping for continuous frequencies**
-   - What we know: White keys are evenly spaced, black keys sit between them. Harmonics fall at arbitrary frequencies (not just on key centers).
-   - What's unclear: Best approach for mapping a continuous frequency to an x-pixel on the piano
-   - Recommendation: Use a linear scale from MIDI 36 to MIDI 83, mapped to SVG x-coordinates. Count only white keys for width computation (35 keys * keyWidth). Position each frequency at its fractional MIDI position interpolated between white key positions. This gives visually correct placement even between keys.
+3. **Piano x-position mapping for continuous frequencies** — RESOLVED: Plan 03-03 Task 1 uses linear MIDI-to-pixel mapping (MIDI 36–83 → SVG x-coordinates). White keys define the width basis (35 keys × keyWidth). Harmonics are positioned at fractional MIDI values interpolated between white key positions.
 
 ## Environment Availability
 
