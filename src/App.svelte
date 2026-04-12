@@ -36,17 +36,21 @@
 
   // Play/pause handler (D-15: responds instantly)
   async function handlePlayPause() {
-    if (!bridgeInitialized) {
-      await bridge.init();
-      bridge.syncParams(); // push current reactive state into freshly built graph
-      bridgeInitialized = true;
-    }
-    if (voiceParams.playing) {
-      bridge.stop();
-      voiceParams.playing = false;
-    } else {
-      await bridge.start();
-      voiceParams.playing = true;
+    try {
+      if (!bridgeInitialized) {
+        await bridge.init();
+        bridge.syncParams(); // push current reactive state into freshly built graph
+        bridgeInitialized = true;
+      }
+      if (voiceParams.playing) {
+        bridge.stop();
+        voiceParams.playing = false;
+      } else {
+        await bridge.start();
+        voiceParams.playing = true;
+      }
+    } catch (err) {
+      console.error('Audio initialization failed:', err);
     }
   }
 
