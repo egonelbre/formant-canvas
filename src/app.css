@@ -1,57 +1,70 @@
 :root {
+  /* Color tokens (UI-SPEC) */
+  --color-bg: #1a1a2e;
+  --color-surface: #2a2a4a;
+  --color-accent: #6366f1;
+  --color-text: #e0e0e0;
+  --color-text-secondary: #8a8aaa;
+  --color-border: #4a4a6a;
+  --color-hover: #3a3a5a;
+  --color-active: #3a3a6a;
+  --color-muted: #ef4444;
+
+  /* Spacing tokens */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-2xl: 48px;
+
+  /* Radius tokens */
+  --radius-sm: 6px;
+  --radius-pill: 16px;
+
   font-family: system-ui, -apple-system, sans-serif;
-  color: #e0e0e0;
-  background-color: #1a1a2e;
+  color: var(--color-text);
+  background-color: var(--color-bg);
 }
 
 main {
-  max-width: 480px;
-  margin: 2rem auto;
-  padding: 1rem;
-  text-align: center;
+  max-width: 600px;
+  margin: var(--spacing-2xl) auto;
+  padding: 0 var(--spacing-md);
 }
 
-.controls {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  margin: 1.5rem 0;
+.section {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
 }
 
-.controls label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.9rem;
-}
-
-.controls input[type="range"] {
-  width: 100%;
-  min-width: 200px;
+.section-heading {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.2;
+  margin: 0 0 var(--spacing-md) 0;
+  color: var(--color-text);
 }
 
 button {
-  padding: 0.75rem 2rem;
-  font-size: 1.1rem;
-  border: 1px solid #4a4a6a;
-  border-radius: 6px;
-  background: #2a2a4a;
-  color: #e0e0e0;
+  padding: 8px 16px;
+  font-size: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
   cursor: pointer;
 }
 
 button:hover {
-  background: #3a3a5a;
+  background: var(--color-hover);
 }
 
 .readout {
-  text-align: left;
   font-family: monospace;
-  font-size: 0.85rem;
-  color: #8a8aaa;
-  margin-top: 1rem;
-}
-
-.readout p {
-  margin: 0.2rem 0;
+  font-size: 14px;
+  line-height: 1.0;
+  color: var(--color-text-secondary);
 }
