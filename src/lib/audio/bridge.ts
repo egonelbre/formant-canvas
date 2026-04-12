@@ -32,10 +32,15 @@ export class AudioBridge {
     try {
       const workletUrl = new URL('./worklet/glottal-processor.ts', import.meta.url);
       await this.ctx.audioWorklet.addModule(workletUrl);
-    } catch {
+    } catch (primaryErr) {
       // Fallback: Vite did not transpile .ts for addModule — try .js
-      const fallbackUrl = new URL('./worklet/glottal-processor.js', import.meta.url);
-      await this.ctx.audioWorklet.addModule(fallbackUrl);
+      try {
+        const fallbackUrl = new URL('./worklet/glottal-processor.js', import.meta.url);
+        await this.ctx.audioWorklet.addModule(fallbackUrl);
+      } catch (fallbackErr) {
+        console.error('Primary worklet load failed:', primaryErr);
+        throw fallbackErr;
+      }
     }
 
     // Create the glottal source worklet node
