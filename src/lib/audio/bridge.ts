@@ -138,10 +138,13 @@ export class AudioBridge {
       { freq: voiceParams.f5Freq, bw: voiceParams.f5BW, gain: voiceParams.f5Gain },
     ];
 
+    // Time constant for formant frequency/Q smoothing (STRAT-03: smooth transitions)
+    // 60ms gives audibly smooth glides during strategy changes and passaggio transitions
+    const formantTC = 0.06;
     for (let i = 0; i < 5; i++) {
       const { freq, bw, gain } = formantData[i];
-      this.formants[i].frequency.setTargetAtTime(freq, now, 0.02);
-      this.formants[i].Q.setTargetAtTime(bandwidthToQ(freq, bw), now, 0.02);
+      this.formants[i].frequency.setTargetAtTime(freq, now, formantTC);
+      this.formants[i].Q.setTargetAtTime(bandwidthToQ(freq, bw), now, formantTC);
       this.formantGains[i].gain.setTargetAtTime(gain, now, 0.01);
     }
 
