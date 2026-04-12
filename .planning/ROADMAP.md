@@ -104,10 +104,10 @@ Plans:
   5. User can drag every visual handle (F1/F2 marker, piano keys, sliders) with touch or pen on a tablet, because all draggable elements use Pointer Events with `touch-action: none`
 **Plans:** 4 plans
 Plans:
-- [ ] 05-01-PLAN.md — Tooltip data + strategy chart math + Tooltip/VibratoVisual components
-- [ ] 05-02-PLAN.md — R1 and R2 Sundberg-style strategy chart SVG components
-- [ ] 05-03-PLAN.md — CSS grid layout rewrite + expert mode + progressive disclosure + tooltip wiring
-- [ ] 05-04-PLAN.md — Multi-touch piano + touch enforcement + human verification
+- [x] 05-01-PLAN.md — Tooltip data + strategy chart math + Tooltip/VibratoVisual components
+- [x] 05-02-PLAN.md — R1 and R2 Sundberg-style strategy chart SVG components
+- [x] 05-03-PLAN.md — CSS grid layout rewrite + expert mode + progressive disclosure + tooltip wiring
+- [x] 05-04-PLAN.md — Multi-touch piano + touch enforcement + human verification
 **UI hint**: yes
 
 ## Progress
