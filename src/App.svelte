@@ -12,12 +12,25 @@
   import ExpressionControls from './lib/components/ExpressionControls.svelte';
   import StrategyPanel from './lib/components/StrategyPanel.svelte';
   import { computeTargets } from './lib/strategies/engine.ts';
+  import { pickStrategy } from './lib/strategies/auto-strategy.ts';
 
   const bridge = new AudioBridge();
   let bridgeInitialized = $state(false);
 
   // Track pressed QWERTY keys (still used for keyboard-driven f0 changes)
   let pressedKeys = $state(new Set<string>());
+
+  // Auto-strategy: reactively update strategy selections as f0/voiceType change
+  // Shows passaggio transitions (e.g. tenor switching from R1:2f0 to R1:f0)
+  $effect(() => {
+    if (!voiceParams.autoStrategy) return;
+    const f0 = voiceParams.f0;
+    const preset = voiceParams.voicePreset;
+    const rec = pickStrategy(f0, preset ?? 'baritone');
+    voiceParams.r1Strategy = rec.r1;
+    voiceParams.r2Strategy = rec.r2;
+    voiceParams.singerFormant = rec.singerFormant;
+  });
 
   // Strategy locked-mode: auto-tune formants to maintain ratio (D-11, STRAT-03)
   // Placed BEFORE syncParams $effect so targets are written before audio sync.

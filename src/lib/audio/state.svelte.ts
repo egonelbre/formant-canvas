@@ -49,6 +49,7 @@ export class VoiceParams {
   singerFormant = $state(false);
   strategyMode = $state<StrategyMode>('off');  // 'off' | 'overlay' | 'locked'
   strategyOverriding = $state(false);  // true during temporary drag override (D-14)
+  autoStrategy = $state(false);  // when true, strategy selections update as f0/voiceType change
 
   /** Read all synth-relevant reactive fields to establish dependency tracking.
    *  Co-located here so new parameters only need to be added in one place. */

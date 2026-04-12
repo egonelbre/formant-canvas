@@ -11,14 +11,17 @@
   ];
 
   function selectR1(id: R1Strategy | null) {
+    voiceParams.autoStrategy = false;  // manual pick disables auto
     voiceParams.r1Strategy = voiceParams.r1Strategy === id ? null : id;
   }
 
   function selectR2(id: R2Strategy | null) {
+    voiceParams.autoStrategy = false;
     voiceParams.r2Strategy = voiceParams.r2Strategy === id ? null : id;
   }
 
   function toggleSingerFormant() {
+    voiceParams.autoStrategy = false;
     voiceParams.singerFormant = !voiceParams.singerFormant;
   }
 
@@ -26,27 +29,29 @@
     voiceParams.strategyMode = mode;
   }
 
-  function selectAuto() {
-    const rec = pickStrategy(voiceParams.f0, voiceParams.voicePreset ?? 'baritone');
-    voiceParams.r1Strategy = rec.r1;
-    voiceParams.r2Strategy = rec.r2;
-    voiceParams.singerFormant = rec.singerFormant;
-    if (voiceParams.strategyMode === 'off') {
-      voiceParams.strategyMode = 'overlay';
+  function toggleAuto() {
+    voiceParams.autoStrategy = !voiceParams.autoStrategy;
+    if (voiceParams.autoStrategy) {
+      // Apply initial recommendation immediately
+      const rec = pickStrategy(voiceParams.f0, voiceParams.voicePreset ?? 'baritone');
+      voiceParams.r1Strategy = rec.r1;
+      voiceParams.r2Strategy = rec.r2;
+      voiceParams.singerFormant = rec.singerFormant;
+      if (voiceParams.strategyMode === 'off') {
+        voiceParams.strategyMode = 'overlay';
+      }
     }
   }
-
-  let hasAnyStrategy = $derived(
-    voiceParams.r1Strategy !== null ||
-    voiceParams.r2Strategy !== null ||
-    voiceParams.singerFormant
-  );
 </script>
 
 <section class="strategy-section">
   <div class="strategy-header">
     <h2 class="section-heading">Vocal Strategy</h2>
-    <button class="auto-btn" onclick={selectAuto}>Auto</button>
+    <button
+      class="auto-btn"
+      class:auto-active={voiceParams.autoStrategy}
+      onclick={toggleAuto}
+    >{voiceParams.autoStrategy ? 'Auto ✓' : 'Auto'}</button>
   </div>
 
   <div class="mode-toggle">
@@ -142,6 +147,12 @@
   .auto-btn:hover {
     background: var(--color-hover, #3a3a5a);
     color: var(--color-text, #e0e0e0);
+  }
+
+  .auto-btn.auto-active {
+    background: var(--color-accent, #6366f1);
+    border-color: var(--color-accent, #6366f1);
+    color: #fff;
   }
 
   .mode-toggle {
