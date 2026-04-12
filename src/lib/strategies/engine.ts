@@ -41,6 +41,10 @@ export function computeTargets(
       case 'r1-f0':  raw = f0; break;
       case 'r1-2f0': raw = 2 * f0; break;
       case 'r1-3f0': raw = 3 * f0; break;
+      default: {
+        const _exhaustive: never = r1;
+        throw new Error(`Unknown R1 strategy: ${_exhaustive}`);
+      }
     }
     const f1 = clamp(raw, FORMANT_BOUNDS.f1.min, FORMANT_BOUNDS.f1.max);
     if (f1 !== raw) { clamped = true; clampedTargets.f1 = true; }
@@ -57,6 +61,10 @@ export function computeTargets(
     switch (r2) {
       case 'r2-2f0': raw = 2 * f0; break;
       case 'r2-3f0': raw = 3 * f0; break;
+      default: {
+        const _exhaustive: never = r2;
+        throw new Error(`Unknown R2 strategy: ${_exhaustive}`);
+      }
     }
     const f2 = clamp(raw, FORMANT_BOUNDS.f2.min, FORMANT_BOUNDS.f2.max);
     if (f2 !== raw) { clamped = true; clampedTargets.f2 = true; }
