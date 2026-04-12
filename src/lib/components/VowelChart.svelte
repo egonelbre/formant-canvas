@@ -1,5 +1,6 @@
 <script lang="ts">
   import { scaleLog } from 'd3-scale';
+  import { tweened } from 'svelte/motion';
   import { HILLENBRAND_VOWELS, getActiveVowelRegion, interpolateHigherFormants } from '../data/hillenbrand.ts';
   import type { SpeakerGroup, HillenbrandVowel } from '../data/hillenbrand.ts';
   import { voiceParams } from '../audio/state.svelte.ts';
@@ -28,9 +29,23 @@
   let dragging = $state(false);
   let svgEl: SVGSVGElement | undefined = $state();
 
-  // Derived: drag handle position
-  let handleX = $derived(f2Scale(voiceParams.f2Freq));
-  let handleY = $derived(f1Scale(voiceParams.f1Freq));
+  // Tweened handle position — matches audio smoothing (60ms TC ≈ 180ms to 95%)
+  // During drag, frequent updates make the tween imperceptible;
+  // for strategy-driven jumps, it provides smooth visual glide.
+  const TWEEN_DURATION = 180;
+  const tweenedHandleX = tweened(f2Scale(voiceParams.f2Freq), { duration: TWEEN_DURATION });
+  const tweenedHandleY = tweened(f1Scale(voiceParams.f1Freq), { duration: TWEEN_DURATION });
+
+  $effect(() => {
+    tweenedHandleX.set(f2Scale(voiceParams.f2Freq));
+  });
+  $effect(() => {
+    tweenedHandleY.set(f1Scale(voiceParams.f1Freq));
+  });
+
+  // Expose both raw (for hit-testing) and tweened (for rendering)
+  let handleX = $derived($tweenedHandleX);
+  let handleY = $derived($tweenedHandleY);
 
   // Derived: active vowel region (D-19, RANGE-03)
   let activeRegion = $derived(getActiveVowelRegion(voiceParams.f1Freq, voiceParams.f2Freq, currentGroup));
