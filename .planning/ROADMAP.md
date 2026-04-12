@@ -49,12 +49,12 @@ Plans:
   5. Play, stop, master volume, and mute respond instantly from any UI state
 **Plans:** 6 plans
 Plans:
-- [ ] 02-01-PLAN.md — TDD: DSP pure functions (vibrato, jitter, spectral tilt, pitch utils)
-- [ ] 02-02-PLAN.md — VoiceParams store extension + data modules (voice presets, phonation presets, QWERTY map)
-- [ ] 02-03-PLAN.md — Extend worklet (vibrato LFO, jitter, spectral tilt) + bridge (new params, mute)
-- [ ] 02-04-PLAN.md — UI components (transport, pitch/piano, voice presets, phonation, expression)
-- [ ] 02-05-PLAN.md — App.svelte rewrite + QWERTY keyboard handler + CSS design tokens
-- [ ] 02-06-PLAN.md — Human verification of complete Phase 2 interface
+- [x] 02-01-PLAN.md — TDD: DSP pure functions (vibrato, jitter, spectral tilt, pitch utils)
+- [x] 02-02-PLAN.md — VoiceParams store extension + data modules (voice presets, phonation presets, QWERTY map)
+- [x] 02-03-PLAN.md — Extend worklet (vibrato LFO, jitter, spectral tilt) + bridge (new params, mute)
+- [x] 02-04-PLAN.md — UI components (transport, pitch/piano, voice presets, phonation, expression)
+- [x] 02-05-PLAN.md — App.svelte rewrite + QWERTY keyboard handler + CSS design tokens
+- [x] 02-06-PLAN.md — Human verification of complete Phase 2 interface
 **UI hint**: yes
 
 ### Phase 3: Linked Visualizations (Piano + F1/F2)
