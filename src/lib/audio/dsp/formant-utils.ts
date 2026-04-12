@@ -11,5 +11,6 @@
  * @returns Q value for BiquadFilterNode
  */
 export function bandwidthToQ(centerFreq: number, bandwidthHz: number): number {
+  if (bandwidthHz <= 0) throw new RangeError(`bandwidthHz must be > 0, got ${bandwidthHz}`);
   return centerFreq / bandwidthHz;
 }
