@@ -26,8 +26,9 @@
   // Layout derived from container size
   let WHITE_KEY_WIDTH = $derived(containerWidth / whiteKeyCount);
   let BLACK_KEY_WIDTH = $derived(WHITE_KEY_WIDTH * 0.64);
-  let KEY_RATIO = 0.23; // fraction of height for piano keys
-  let WHITE_KEY_HEIGHT = $derived(containerHeight * KEY_RATIO);
+  // Piano keys fixed at ~3cm (113px at 96dpi CSS reference pixel)
+  const KEY_HEIGHT_PX = 113;
+  let WHITE_KEY_HEIGHT = $derived(Math.min(KEY_HEIGHT_PX, containerHeight * 0.45));
   let BLACK_KEY_HEIGHT = $derived(WHITE_KEY_HEIGHT * 0.58);
   let LABEL_PADDING = 16;
   let HARMONIC_REGION_HEIGHT = $derived(containerHeight - WHITE_KEY_HEIGHT - LABEL_PADDING);
