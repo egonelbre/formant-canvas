@@ -105,8 +105,11 @@
   }
 
   const HELP = {
-    controls: 'Pitch, phonation, vibrato, and vocal strategy controls. Strategy determines how formants track pitch harmonics.',
-    charts: 'Vowel space: F1 (openness) vs F2 (frontness). Drag the dot to change timbre, click IPA symbols to snap. Data: Hillenbrand et al. (1995). Below: Sundberg resonance strategy charts showing formant-harmonic relationships.',
+    pitch: 'Fundamental frequency (pitch) of the voice. Vibrato adds periodic pitch variation. Use the piano keyboard or QWERTY keys to change pitch.',
+    formants: 'Resonance bandwidths control how sharp or broad each formant peak is. Narrower bandwidth = more prominent resonance.',
+    phonation: 'How the vocal folds vibrate. Modal is normal speech. Breathy adds air noise. Pressed is tight/strained. Expert mode shows Open Quotient, Spectral Tilt, and Aspiration.',
+    strategy: 'Vocal strategy determines how formant resonances track pitch harmonics. Singers tune R1/R2 to align with harmonics for projection. Auto selects strategies based on voice type and pitch.',
+    charts: 'Vowel space: R1 (openness) vs R2 (frontness). Drag the dot to change timbre, click IPA symbols to snap. Data: Hillenbrand et al. (1995). Below: Sundberg resonance strategy charts showing formant-harmonic relationships.',
   };
 </script>
 
@@ -127,13 +130,14 @@
 
   <!-- PANELS: horizontal control strip -->
   <div class="panels">
-    <RegionHelp text={HELP.controls} />
     <div class="panel-col">
+      <RegionHelp text={HELP.pitch} />
       <PitchSection {expertMode} />
       <ExpressionControls {expertMode} />
       <VibratoVisual rate={voiceParams.vibratoRate} extent={voiceParams.vibratoExtent} />
       {#if expertMode}
         <div class="expert-formant-bw">
+          <RegionHelp text={HELP.formants} />
           <h2 class="section-heading">Formants</h2>
           <div class="formant-readouts">
             <span class="readout">R1: {Math.round(voiceParams.f1Freq)} Hz</span>
@@ -155,9 +159,11 @@
       {/if}
     </div>
     <div class="panel-col">
+      <RegionHelp text={HELP.phonation} />
       <PhonationMode {expertMode} />
     </div>
     <div class="panel-col">
+      <RegionHelp text={HELP.strategy} />
       <StrategyPanel section="all" />
     </div>
   </div>
@@ -248,6 +254,7 @@
     overflow-x: hidden;
   }
   .panel-col {
+    position: relative;
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -294,6 +301,7 @@
     grid-area: r1resonance;
   }
   .expert-formant-bw {
+    position: relative;
     display: flex;
     flex-direction: column;
     gap: var(--spacing-xs);
