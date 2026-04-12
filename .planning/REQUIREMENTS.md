@@ -1,12 +1,3 @@
-# Requirements Archive: v0.1 Initial Release
-
-**Archived:** 2026-04-12
-**Status:** SHIPPED
-
-For current requirements, see `.planning/REQUIREMENTS.md`.
-
----
-
 # Requirements: Formant Canvas
 
 **Defined:** 2026-04-11
