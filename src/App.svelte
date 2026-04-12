@@ -10,12 +10,38 @@
   import VoicePresets from './lib/components/VoicePresets.svelte';
   import PhonationMode from './lib/components/PhonationMode.svelte';
   import ExpressionControls from './lib/components/ExpressionControls.svelte';
+  import StrategyPanel from './lib/components/StrategyPanel.svelte';
+  import { computeTargets } from './lib/strategies/engine.ts';
 
   const bridge = new AudioBridge();
   let bridgeInitialized = $state(false);
 
   // Track pressed QWERTY keys (still used for keyboard-driven f0 changes)
   let pressedKeys = $state(new Set<string>());
+
+  // Strategy locked-mode: auto-tune formants to maintain ratio (D-11, STRAT-03)
+  // Placed BEFORE syncParams $effect so targets are written before audio sync.
+  // Only reads f0/strategyId/strategyMode/strategyOverriding/voicePreset -- does NOT
+  // read formant frequencies it writes to, avoiding circular reactive updates (T-04-03).
+  $effect(() => {
+    const mode = voiceParams.strategyMode;
+    const id = voiceParams.strategyId;
+    const f0 = voiceParams.f0;
+    const overriding = voiceParams.strategyOverriding;
+    const preset = voiceParams.voicePreset;
+
+    if (mode !== 'locked' || overriding) return;
+
+    const result = computeTargets(id, f0, preset ?? 'baritone');
+    const t = result.targets;
+
+    // Write targets to voiceParams -- the existing syncParams $effect will forward to audio
+    if (t.f1 !== null) voiceParams.f1Freq = t.f1;
+    if (t.f2 !== null) voiceParams.f2Freq = t.f2;
+    if (t.f3 !== null) voiceParams.f3Freq = t.f3;
+    if (t.f4 !== null) voiceParams.f4Freq = t.f4;
+    if (t.f5 !== null) voiceParams.f5Freq = t.f5;
+  });
 
   // Forward ALL voiceParams changes to audio graph (AUDIO-06, LINK-02)
   // Dependency tracking is consolidated in voiceParams.snapshot (WR-03)
@@ -77,6 +103,7 @@
   <TransportBar onplayclick={handlePlayPause} {bridgeInitialized} />
   <PianoHarmonics />
   <VowelChart />
+  <StrategyPanel />
   <PitchSection />
   <VoicePresets />
   <PhonationMode />
