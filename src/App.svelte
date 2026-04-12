@@ -21,21 +21,23 @@
 
   // Strategy locked-mode: auto-tune formants to maintain ratio (D-11, STRAT-03)
   // Placed BEFORE syncParams $effect so targets are written before audio sync.
-  // Only reads f0/strategyId/strategyMode/strategyOverriding/voicePreset -- does NOT
-  // read formant frequencies it writes to, avoiding circular reactive updates (T-04-03).
+  // Only reads f0/r1Strategy/r2Strategy/singerFormant/strategyMode/strategyOverriding/voicePreset --
+  // does NOT read formant frequencies it writes to, avoiding circular reactive updates (T-04-03).
   $effect(() => {
     const mode = voiceParams.strategyMode;
-    const id = voiceParams.strategyId;
+    const r1 = voiceParams.r1Strategy;
+    const r2 = voiceParams.r2Strategy;
+    const sf = voiceParams.singerFormant;
     const f0 = voiceParams.f0;
     const overriding = voiceParams.strategyOverriding;
     const preset = voiceParams.voicePreset;
 
     if (mode !== 'locked' || overriding) return;
+    if (!r1 && !r2 && !sf) return;
 
-    const result = computeTargets(id, f0, preset ?? 'baritone');
+    const result = computeTargets(r1, r2, sf, f0, preset ?? 'baritone');
     const t = result.targets;
 
-    // Write targets to voiceParams -- the existing syncParams $effect will forward to audio
     if (t.f1 !== null) voiceParams.f1Freq = t.f1;
     if (t.f2 !== null) voiceParams.f2Freq = t.f2;
     if (t.f3 !== null) voiceParams.f3Freq = t.f3;

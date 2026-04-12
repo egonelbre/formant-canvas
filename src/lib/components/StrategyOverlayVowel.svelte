@@ -14,8 +14,12 @@
   const WARNING_COLOR = '#ef4444';
 
   let strategyTargets = $derived.by(() => {
-    if (voiceParams.strategyMode === 'off' || voiceParams.strategyId === 'speech') return null;
-    return computeTargets(voiceParams.strategyId, voiceParams.f0, voiceParams.voicePreset ?? 'baritone');
+    if (voiceParams.strategyMode === 'off') return null;
+    const r1 = voiceParams.r1Strategy;
+    const r2 = voiceParams.r2Strategy;
+    const sf = voiceParams.singerFormant;
+    if (!r1 && !r2 && !sf) return null;
+    return computeTargets(r1, r2, sf, voiceParams.f0, voiceParams.voicePreset ?? 'baritone');
   });
 
   // For single-formant strategies, use current position for the uncontrolled axis

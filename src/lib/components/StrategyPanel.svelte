@@ -1,8 +1,8 @@
 <script lang="ts">
   import { voiceParams } from '../audio/state.svelte.ts';
-  import { STRATEGY_PRESETS, STRATEGY_DEFINITIONS } from '../strategies/definitions.ts';
+  import { R1_STRATEGIES, R2_STRATEGIES, R1_LIST, R2_LIST } from '../strategies/definitions.ts';
   import { pickStrategy } from '../strategies/auto-strategy.ts';
-  import type { StrategyId, StrategyMode } from '../strategies/types.ts';
+  import type { R1Strategy, R2Strategy, StrategyMode } from '../strategies/types.ts';
 
   const MODES: { key: StrategyMode; label: string }[] = [
     { key: 'off', label: 'Off' },
@@ -10,8 +10,16 @@
     { key: 'locked', label: 'Locked' },
   ];
 
-  function selectStrategy(id: StrategyId) {
-    voiceParams.strategyId = id;
+  function selectR1(id: R1Strategy | null) {
+    voiceParams.r1Strategy = voiceParams.r1Strategy === id ? null : id;
+  }
+
+  function selectR2(id: R2Strategy | null) {
+    voiceParams.r2Strategy = voiceParams.r2Strategy === id ? null : id;
+  }
+
+  function toggleSingerFormant() {
+    voiceParams.singerFormant = !voiceParams.singerFormant;
   }
 
   function selectMode(mode: StrategyMode) {
@@ -19,9 +27,20 @@
   }
 
   function selectAuto() {
-    const id = pickStrategy(voiceParams.f0, voiceParams.voicePreset ?? 'baritone');
-    voiceParams.strategyId = id;
+    const rec = pickStrategy(voiceParams.f0, voiceParams.voicePreset ?? 'baritone');
+    voiceParams.r1Strategy = rec.r1;
+    voiceParams.r2Strategy = rec.r2;
+    voiceParams.singerFormant = rec.singerFormant;
+    if (voiceParams.strategyMode === 'off') {
+      voiceParams.strategyMode = 'overlay';
+    }
   }
+
+  let hasAnyStrategy = $derived(
+    voiceParams.r1Strategy !== null ||
+    voiceParams.r2Strategy !== null ||
+    voiceParams.singerFormant
+  );
 </script>
 
 <section class="strategy-section">
@@ -42,25 +61,50 @@
     {/each}
   </div>
 
-  <div class="strategy-list">
-    {#each STRATEGY_PRESETS as preset (preset.label)}
-      {@const def = STRATEGY_DEFINITIONS[preset.id]}
-      {@const isActive = voiceParams.strategyId === preset.id}
-      <button
-        class="strategy-btn"
-        class:active={isActive}
-        onclick={() => selectStrategy(preset.id)}
-      >
-        <span class="strategy-notation">
-          {#if preset.r1Strategy && preset.r2Strategy}
-            {STRATEGY_DEFINITIONS[preset.r1Strategy].notation} + {STRATEGY_DEFINITIONS[preset.r2Strategy].notation}
-          {:else}
-            {def.notation}
-          {/if}
-        </span>
-        <span class="strategy-desc">{def.description}</span>
-      </button>
-    {/each}
+  <div class="strategy-group">
+    <h3 class="group-heading">R1 — First Formant</h3>
+    <div class="strategy-list">
+      {#each R1_LIST as id (id)}
+        {@const def = R1_STRATEGIES[id]}
+        <button
+          class="strategy-btn"
+          class:active={voiceParams.r1Strategy === id}
+          onclick={() => selectR1(id)}
+        >
+          <span class="strategy-notation">{def.notation}</span>
+          <span class="strategy-desc">{def.description}</span>
+        </button>
+      {/each}
+    </div>
+  </div>
+
+  <div class="strategy-group">
+    <h3 class="group-heading">R2 — Second Formant</h3>
+    <div class="strategy-list">
+      {#each R2_LIST as id (id)}
+        {@const def = R2_STRATEGIES[id]}
+        <button
+          class="strategy-btn"
+          class:active={voiceParams.r2Strategy === id}
+          onclick={() => selectR2(id)}
+        >
+          <span class="strategy-notation">{def.notation}</span>
+          <span class="strategy-desc">{def.description}</span>
+        </button>
+      {/each}
+    </div>
+  </div>
+
+  <div class="strategy-group">
+    <h3 class="group-heading">Singer's Formant</h3>
+    <button
+      class="strategy-btn singer-toggle"
+      class:active={voiceParams.singerFormant}
+      onclick={toggleSingerFormant}
+    >
+      <span class="strategy-notation">F3-F4-F5 Cluster</span>
+      <span class="strategy-desc">Clusters F3/F4/F5 for projection ("ring")</span>
+    </button>
   </div>
 </section>
 
@@ -125,6 +169,21 @@
     border: 2px solid var(--color-accent, #6366f1);
     color: var(--color-accent, #6366f1);
     padding: 7px 15px;
+  }
+
+  .strategy-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs, 4px);
+  }
+
+  .group-heading {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-secondary, #8a8aaa);
+    margin: 0;
   }
 
   .strategy-list {

@@ -16,8 +16,12 @@
   const TARGET_LABELS = ['T1', 'T2', 'T3', 'T4', 'T5'];
 
   let strategyTargets = $derived.by(() => {
-    if (voiceParams.strategyMode === 'off' || voiceParams.strategyId === 'speech') return null;
-    return computeTargets(voiceParams.strategyId, voiceParams.f0, voiceParams.voicePreset ?? 'baritone');
+    if (voiceParams.strategyMode === 'off') return null;
+    const r1 = voiceParams.r1Strategy;
+    const r2 = voiceParams.r2Strategy;
+    const sf = voiceParams.singerFormant;
+    if (!r1 && !r2 && !sf) return null;
+    return computeTargets(r1, r2, sf, voiceParams.f0, voiceParams.voicePreset ?? 'baritone');
   });
 
   let targetLines = $derived.by(() => {

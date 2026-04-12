@@ -1,5 +1,5 @@
 import type { FormantParams, PhonationMode } from '../types.ts';
-import type { StrategyId, StrategyMode } from '../strategies/types.ts';
+import type { R1Strategy, R2Strategy, StrategyMode } from '../strategies/types.ts';
 
 /**
  * Single source of truth for all voice synthesis parameters.
@@ -43,8 +43,10 @@ export class VoiceParams {
   // Voice preset tracking (D-12)
   voicePreset = $state<string | null>(null);  // null = custom
 
-  // Strategy (Phase 4)
-  strategyId = $state<StrategyId>('speech');
+  // Strategy (Phase 4) — R1 and R2 independently toggleable, singer's formant separate
+  r1Strategy = $state<R1Strategy | null>(null);
+  r2Strategy = $state<R2Strategy | null>(null);
+  singerFormant = $state(false);
   strategyMode = $state<StrategyMode>('off');  // 'off' | 'overlay' | 'locked'
   strategyOverriding = $state(false);  // true during temporary drag override (D-14)
 
