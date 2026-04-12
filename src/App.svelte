@@ -16,10 +16,12 @@
   import VibratoVisual from './lib/components/VibratoVisual.svelte';
   import LabeledSlider from './lib/components/LabeledSlider.svelte';
   import RegionHelp from './lib/components/RegionHelp.svelte';
+  import AboutDialog from './lib/components/AboutDialog.svelte';
   import { computeTargets } from './lib/strategies/engine.ts';
   import { pickStrategy } from './lib/strategies/auto-strategy.ts';
 
   let expertMode = $state(localStorage.getItem('expertMode') === 'true');
+  let aboutOpen = $state(false);
 
   $effect(() => {
     localStorage.setItem('expertMode', String(expertMode));
@@ -141,7 +143,10 @@
       <span class="toggle-track"><span class="toggle-thumb"></span></span>
     </label>
     <button class="fullscreen-btn" onclick={toggleFullscreen} aria-label="Toggle fullscreen">&#x26F6;</button>
+    <button class="about-btn" onclick={() => aboutOpen = true} aria-label="About">?</button>
   </header>
+
+  <AboutDialog bind:open={aboutOpen} />
 
   <!-- PANELS: horizontal control strip -->
   <div class="panels">
@@ -275,9 +280,27 @@
     color: var(--color-text-secondary);
     cursor: pointer;
   }
-  .fullscreen-btn:hover {
+  .fullscreen-btn:hover,
+  .about-btn:hover {
     background: var(--color-hover);
     color: var(--color-text);
+  }
+
+  .about-btn {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    font-size: 16px;
+    font-weight: 700;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+    color: var(--color-text-secondary);
+    cursor: pointer;
   }
 
   /* Horizontal control panels */
