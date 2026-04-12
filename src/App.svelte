@@ -136,13 +136,7 @@
       <PhonationMode {expertMode} />
     </div>
     <div class="panel-col">
-      <StrategyPanel section="mode" />
-    </div>
-    <div class="panel-col">
-      <StrategyPanel section="r1" />
-    </div>
-    <div class="panel-col">
-      <StrategyPanel section="r2" />
+      <StrategyPanel section="all" />
     </div>
   </div>
 
