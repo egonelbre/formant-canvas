@@ -1,12 +1,17 @@
 ---
 phase: 02-voice-controls-expression
 verified: 2026-04-12T13:30:00Z
-status: gaps_found
-score: 4/5 must-haves verified
-overrides_applied: 0
+status: passed
+score: 5/5 must-haves verified
+overrides_applied: 1
+overrides:
+  - truth: "User can load voice-type presets and hear the f0 range and starting formants load together"
+    decision: "User explicitly requested voice presets only change formants, preserving current pitch and phonation. f0Default retained in data for optional future use."
+    approved_by: user
+    date: 2026-04-12
 gaps:
   - truth: "User can load voice-type presets and hear the f0 range and starting formants load together"
-    status: failed
+    status: overridden
     reason: "VoicePresets.svelte loadPreset() only sets formant frequencies/bandwidths. It does NOT set f0 (voiceParams.f0 = preset.f0Default is absent). The ROADMAP Success Criterion 4 requires 'f0 range and starting formants load together'. Documented in 02-06 SUMMARY as a user-preference deviation but this contradicts the roadmap contract."
     artifacts:
       - path: "src/lib/components/VoicePresets.svelte"
