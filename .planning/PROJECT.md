@@ -14,7 +14,10 @@ Linked exploration — audio and visuals are tightly coupled, so changing a para
 
 <!-- Shipped and confirmed valuable. -->
 
-(None yet — ship to validate)
+- [x] Glottal pulse synthesis with smoothly interpolating parameters — Validated in Phase 1: Audio Closed Loop
+- [x] Formant filter chain (at least F1-F4, tunable frequency/bandwidth/gain) — Validated in Phase 1: Audio Closed Loop
+- [x] Real-time linked updates across all views when any parameter changes — Validated in Phase 1: Audio Closed Loop (single store proven)
+- [x] Runs in the browser with no install (Web Audio API) — Validated in Phase 1: Audio Closed Loop
 
 ### Active
 
@@ -88,4 +91,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-11 after initialization*
+*Last updated: 2026-04-12 after Phase 1 completion*
