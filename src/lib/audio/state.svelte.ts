@@ -1,4 +1,4 @@
-import type { FormantParams } from '../types.ts';
+import type { FormantParams, PhonationMode } from '../types.ts';
 
 /**
  * Single source of truth for all voice synthesis parameters.
@@ -23,6 +23,23 @@ export class VoiceParams {
   // Master
   masterGain = $state(0.5);
   playing = $state(false);
+
+  // Vibrato (D-06, D-07)
+  vibratoRate = $state(5);        // Hz, LFO frequency
+  vibratoExtent = $state(10);     // cents, LFO depth
+
+  // Jitter (D-08)
+  jitterAmount = $state(0);       // 0-1, per-cycle random f0 offset
+
+  // Phonation (D-09, D-10)
+  phonationMode = $state<PhonationMode>('modal');
+  spectralTilt = $state(6);       // dB attenuation at 3 kHz (0-24)
+
+  // Transport (D-14)
+  muted = $state(false);
+
+  // Voice preset tracking (D-12)
+  voicePreset = $state<string | null>(null);  // null = custom
 
   /** Get formant params as an array for iteration */
   get formants(): FormantParams[] {
