@@ -29,6 +29,20 @@
     voiceParams.strategyMode = mode;
   }
 
+  function clearAll() {
+    voiceParams.autoStrategy = false;
+    voiceParams.r1Strategy = null;
+    voiceParams.r2Strategy = null;
+    voiceParams.singerFormant = false;
+    voiceParams.strategyMode = 'off';
+  }
+
+  let hasAnyStrategy = $derived(
+    voiceParams.r1Strategy !== null ||
+    voiceParams.r2Strategy !== null ||
+    voiceParams.singerFormant
+  );
+
   function toggleAuto() {
     voiceParams.autoStrategy = !voiceParams.autoStrategy;
     if (voiceParams.autoStrategy) {
@@ -54,6 +68,15 @@
     >{voiceParams.autoStrategy ? 'Auto ✓' : 'Auto'}</button>
   </div>
 
+  <button
+    class="strategy-btn speech-btn"
+    class:active={!hasAnyStrategy}
+    onclick={clearAll}
+  >
+    <span class="strategy-notation">Speech (untuned)</span>
+    <span class="strategy-desc">No formant tracking — formants free</span>
+  </button>
+
   <div class="mode-toggle">
     {#each MODES as mode (mode.key)}
       <button
@@ -65,6 +88,12 @@
       </button>
     {/each}
   </div>
+
+  {#if voiceParams.strategyMode === 'locked'}
+    <p class="mode-hint">Formants auto-tune to match pitch. Drag to override temporarily — releases snap back.</p>
+  {:else if voiceParams.strategyMode === 'overlay'}
+    <p class="mode-hint">Target positions shown visually. Audio unchanged.</p>
+  {/if}
 
   <div class="strategy-group">
     <h3 class="group-heading">R1 — First Formant</h3>
@@ -180,6 +209,17 @@
     border: 2px solid var(--color-accent, #6366f1);
     color: var(--color-accent, #6366f1);
     padding: 7px 15px;
+  }
+
+  .speech-btn {
+    margin-bottom: var(--spacing-xs, 4px);
+  }
+
+  .mode-hint {
+    font-size: 12px;
+    color: var(--color-text-secondary, #8a8aaa);
+    margin: 0;
+    line-height: 1.4;
   }
 
   .strategy-group {
