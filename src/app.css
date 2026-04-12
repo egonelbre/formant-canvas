@@ -51,7 +51,7 @@ html, body {
   position: fixed;
   inset: 0;
   display: grid;
-  grid-template-rows: auto 1fr 30vh;
+  grid-template-rows: auto 1fr 3cm;
   grid-template-columns: 1fr 8cm;
   grid-template-areas:
     "header  header"
