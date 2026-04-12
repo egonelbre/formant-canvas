@@ -5,8 +5,9 @@
   interface Props {
     freqToX: (freq: number) => number;
     barRegionHeight: number; // 72 (80px region minus 8px top margin)
+    regionBottom: number;    // y coordinate of the bottom of the harmonic region
   }
-  let { freqToX, barRegionHeight }: Props = $props();
+  let { freqToX, barRegionHeight, regionBottom }: Props = $props();
 
   // Extended frequency range to show harmonics near F2-F4
   const MAX_FREQ = 5000;
@@ -36,7 +37,7 @@
     const bars = harmonics.map(h => {
       const x = freqToX(h.freq);
       const barHeight = (h.amplitude / maxAmplitude) * barRegionHeight;
-      const y = 80 - barHeight; // bars grow upward from key top at y=80
+      const y = regionBottom - barHeight; // bars grow upward from key top
       return {
         n: h.n,
         x: x - 2, // center the 4px bar

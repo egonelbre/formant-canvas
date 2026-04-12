@@ -5,8 +5,9 @@
   interface Props {
     freqToX: (freq: number) => number;
     curveRegionHeight: number; // 72 (same as bar region)
+    regionBottom: number;      // y coordinate of the bottom of the harmonic region
   }
-  let { freqToX, curveRegionHeight }: Props = $props();
+  let { freqToX, curveRegionHeight, regionBottom }: Props = $props();
 
   // Formant colors (per UI-SPEC)
   const FORMANT_COLORS = ['#f97316', '#22c55e', '#3b82f6', '#a855f7']; // F1-F4
@@ -49,7 +50,7 @@
       const points: { x: number; y: number }[] = [];
       for (let i = 0; i < SAMPLE_COUNT; i++) {
         const x = freqToX(freqs[i]);
-        const y = 80 - (allAmplitudes[fi][i] / globalMax) * curveRegionHeight;
+        const y = regionBottom - (allAmplitudes[fi][i] / globalMax) * curveRegionHeight;
         points.push({ x, y });
       }
       curves.push({
@@ -108,9 +109,9 @@
     {#if marker.visible}
       <line
         x1={marker.x}
-        y1={8}
+        y1={regionBottom - curveRegionHeight}
         x2={marker.x}
-        y2={80}
+        y2={regionBottom}
         stroke={marker.color}
         stroke-width="2"
         stroke-dasharray="2 2"

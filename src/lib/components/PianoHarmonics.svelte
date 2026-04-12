@@ -261,10 +261,10 @@
     onpointercancel={onPointerUp}
   >
     <!-- Harmonic bars region (0-80px) -->
-    <HarmonicBars {freqToX} barRegionHeight={BAR_REGION_HEIGHT} />
+    <HarmonicBars {freqToX} barRegionHeight={BAR_REGION_HEIGHT} regionBottom={HARMONIC_REGION_HEIGHT} />
 
     <!-- Formant curves region (0-80px, on top of bars) -->
-    <FormantCurves {freqToX} curveRegionHeight={BAR_REGION_HEIGHT} />
+    <FormantCurves {freqToX} curveRegionHeight={BAR_REGION_HEIGHT} regionBottom={HARMONIC_REGION_HEIGHT} />
 
     <!-- Formant range band (shown during formant drag) -->
     {#if dragMode === 'formant' && dragFormantIndex >= 0}
