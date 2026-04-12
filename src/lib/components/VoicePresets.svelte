@@ -1,7 +1,6 @@
 <script lang="ts">
   import { voiceParams } from '../audio/state.svelte.ts';
   import { VOICE_PRESETS } from '../data/voice-presets.ts';
-  import { PHONATION_PRESETS } from '../data/phonation-presets.ts';
   import ChipGroup from './ChipGroup.svelte';
 
   const options = Object.entries(VOICE_PRESETS).map(([key, p]) => ({ key, label: p.label }));
@@ -9,17 +8,11 @@
   function loadPreset(key: string) {
     const preset = VOICE_PRESETS[key];
     if (!preset) return;
-    voiceParams.f0 = preset.f0Default;
+    // Only change formant frequencies/bandwidths — preserve current pitch and phonation
     voiceParams.f1Freq = preset.f1; voiceParams.f1BW = preset.f1BW;
     voiceParams.f2Freq = preset.f2; voiceParams.f2BW = preset.f2BW;
     voiceParams.f3Freq = preset.f3; voiceParams.f3BW = preset.f3BW;
     voiceParams.f4Freq = preset.f4; voiceParams.f4BW = preset.f4BW;
-    // Reset phonation to modal (D-13: complete voice reset)
-    const modal = PHONATION_PRESETS.modal;
-    voiceParams.openQuotient = modal.openQuotient;
-    voiceParams.aspirationLevel = modal.aspirationLevel;
-    voiceParams.spectralTilt = modal.spectralTilt;
-    voiceParams.phonationMode = 'modal';
     voiceParams.voicePreset = key;
   }
 </script>
