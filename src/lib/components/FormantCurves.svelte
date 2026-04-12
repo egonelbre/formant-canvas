@@ -144,7 +144,7 @@
       />
       <text
         x={marker.x}
-        y={6}
+        y={14}
         text-anchor="middle"
         font-size="11"
         font-weight="600"

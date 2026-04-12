@@ -15,7 +15,7 @@
   const WHITE_KEY_HEIGHT = 48;
   const BLACK_KEY_WIDTH = 9;
   const BLACK_KEY_HEIGHT = 28;
-  const LABEL_PADDING = 14; // space above harmonics for R1/R2/f0 labels
+  const LABEL_PADDING = 20; // space above harmonics for R1/R2/f0 labels
   const HARMONIC_REGION_HEIGHT = 140;
   const BAR_REGION_HEIGHT = HARMONIC_REGION_HEIGHT - LABEL_PADDING;
   const SVG_HEIGHT = LABEL_PADDING + HARMONIC_REGION_HEIGHT + WHITE_KEY_HEIGHT;
