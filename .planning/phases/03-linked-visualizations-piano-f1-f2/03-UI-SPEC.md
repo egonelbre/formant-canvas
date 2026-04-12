@@ -58,8 +58,10 @@ Additional for this phase:
 |------|------|--------|-------------|-------|
 | IPA symbol on chart | 14px | 600 (semibold) | 1.0 | Vowel labels at Hillenbrand centroid positions |
 | Axis tick label | 11px | 400 (regular) | 1.0 | Hz values on F1/F2 axes and piano C-labels |
-| Citation | 10px | 400 (regular) | 1.3 | Hillenbrand source attribution below chart |
+| Citation | 11px | 400 (regular) | 1.3 | Hillenbrand source attribution below chart |
 | Formant legend label | 11px | 600 (semibold) | 1.0 | "F1" "F2" "F3" "F4" in piano formant curve legend |
+
+Typography scale (4 sizes): 11px (tick / legend / citation), 12px (label / axis title), 14px (body / readout / IPA symbol), 16px (heading).
 
 ---
 
@@ -187,7 +189,7 @@ The app layout expands from the Phase 2 single-column (600px max) to a wider lay
 - Drawn as `<polygon>` or `<path>` with the voice-type overlay colors (blue/orange/green at 10% opacity)
 - Stroke: same color at 30% opacity, 1px dashed (4px dash, 4px gap)
 - Only one overlay visible at a time. Default: none shown.
-- Voice-type overlay selector: a 3-chip group ("Male", "Female", "Child") positioned above the chart, right-aligned. Uses existing ChipGroup component pattern. An additional "None" option (default) hides all overlays.
+- Voice-type overlay selector: a 3-chip group ("Male Range", "Female Range", "Child Range") positioned above the chart, right-aligned. Uses existing ChipGroup component pattern. An additional "None" option (default) hides all overlays.
 
 **Drag handle (D-12, D-13, VOWEL-03):**
 - Filled circle, 16px diameter, accent color (`#6366f1`), no stroke
@@ -202,7 +204,7 @@ The app layout expands from the Phase 2 single-column (600px max) to a wider lay
 - The drag handle overlaps with a vowel position when snapped; the handle renders on top
 
 **Citation (D-18, VOWEL-05):**
-- Text "Data: Hillenbrand et al. (1995)" rendered below the X-axis in citation typography (10px, regular)
+- Text "Data: Hillenbrand et al. (1995)" rendered below the X-axis in citation typography (11px, regular)
 - Color: `#8a8aaa` (text-secondary)
 - Position: right-aligned within the plot area, 4px below the X-axis title
 
@@ -238,7 +240,7 @@ The app layout expands from the Phase 2 single-column (600px max) to a wider lay
 
 ### Voice-Type Overlay Toggle
 
-- Clicking a voice-type chip ("Male", "Female", "Child", "None") shows/hides the corresponding formant range overlay on the F1/F2 chart
+- Clicking a voice-type chip ("None", "Male Range", "Female Range", "Child Range") shows/hides the corresponding formant range overlay on the F1/F2 chart
 - Radio behavior: only one overlay visible at a time
 - "None" is the default selected state
 
@@ -288,7 +290,7 @@ All parameter changes from ANY source (F1/F2 drag, vowel preset click, piano cli
 | Piano section heading | "Harmonics" |
 | F1/F2 section heading | "Vowel Space" |
 | Voice-type overlay label | "Formant Ranges" (small label above chip group) |
-| Voice-type chips | "None", "Male", "Female", "Child" |
+| Voice-type chips | "None", "Male Range", "Female Range", "Child Range" |
 | X-axis title | "F2 (Hz)" |
 | Y-axis title | "F1 (Hz)" |
 | Citation text | "Data: Hillenbrand et al. (1995)" |
