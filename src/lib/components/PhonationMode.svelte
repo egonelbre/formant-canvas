@@ -4,6 +4,7 @@
   import type { PhonationMode } from '../types.ts';
   import ChipGroup from './ChipGroup.svelte';
   import LabeledSlider from './LabeledSlider.svelte';
+  import GlottalPulseVisual from './GlottalPulseVisual.svelte';
 
   interface Props {
     expertMode?: boolean;
@@ -25,6 +26,12 @@
 <section class="phonation-section">
   <h2 class="section-heading">Phonation</h2>
   <ChipGroup {options} selected={voiceParams.phonationMode} onselect={loadMode} />
+
+  <GlottalPulseVisual
+    openQuotient={voiceParams.openQuotient}
+    spectralTilt={voiceParams.spectralTilt}
+    aspirationLevel={voiceParams.aspirationLevel}
+  />
 
   {#if expertMode}
     <div class="expert-params">
