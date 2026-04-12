@@ -28,6 +28,7 @@
 
   .chip {
     padding: 8px 16px;
+    min-height: 44px;
     border-radius: 16px;
     background: var(--color-surface, #2a2a4a);
     border: 1px solid var(--color-border, #4a4a6a);

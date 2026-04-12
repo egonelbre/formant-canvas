@@ -8,6 +8,7 @@
     pressedKeys?: Set<string>;
     showLabels?: boolean;
     qwertyMap?: Record<string, number>;
+    multiTouch?: boolean;
     onkeyclick?: (midi: number) => void;
   }
   let {
@@ -17,8 +18,13 @@
     pressedKeys = new Set(),
     showLabels = false,
     qwertyMap = {},
+    multiTouch = true,
     onkeyclick,
   }: Props = $props();
+
+  // Multi-touch state: maps pointerId -> midiNote (D-23)
+  let activePointers = $state(new Map<number, number>());
+  let touchedMidis = $derived(new Set(activePointers.values()));
 
   // Black key classification: MIDI % 12 in [1,3,6,8,10]
   const BLACK_NOTE_INDICES = new Set([1, 3, 6, 8, 10]);
@@ -104,24 +110,23 @@
   }
 
   function getWhiteKeyFill(midi: number): string {
-    if (highlightMidi === midi) return 'var(--color-accent, #6366f1)';
+    if (highlightMidi === midi || touchedMidis.has(midi)) return 'var(--color-accent, #6366f1)';
     if (isPressed(midi)) return 'rgba(99, 102, 241, 0.5)';
     return '#d4d4d8';
   }
 
   function getBlackKeyFill(midi: number): string {
-    if (highlightMidi === midi) return 'var(--color-accent, #6366f1)';
+    if (highlightMidi === midi || touchedMidis.has(midi)) return 'var(--color-accent, #6366f1)';
     if (isPressed(midi)) return 'rgba(99, 102, 241, 0.7)';
     return '#27272a';
   }
 
   function getLabelColor(midi: number): string {
-    if (highlightMidi === midi || isPressed(midi)) return '#ffffff';
+    if (highlightMidi === midi || isPressed(midi) || touchedMidis.has(midi)) return '#ffffff';
     return isBlackKey(midi) ? '#a0a0a0' : '#555555';
   }
 
-  // Pointer drag support: click or drag across keys to set pitch
-  let dragging = $state(false);
+  // Pointer interaction: multi-touch with last-note-sets-f0 (D-23)
   let svgEl: SVGSVGElement | undefined = $state();
 
   function midiFromPointer(e: PointerEvent): number | null {
@@ -151,22 +156,51 @@
 
   function onPointerDown(e: PointerEvent) {
     e.preventDefault();
-    dragging = true;
     svgEl?.setPointerCapture(e.pointerId);
+
     const midi = midiFromPointer(e);
-    if (midi !== null) onkeyclick?.(midi);
+    if (midi === null) return;
+
+    // Cap at 10 pointers to prevent unbounded growth (T-05-07)
+    if (activePointers.size >= 10) return;
+
+    activePointers = new Map(activePointers);
+    activePointers.set(e.pointerId, midi);
+
+    // Last-touched note sets f0 (monophonic, D-23)
+    onkeyclick?.(midi);
   }
 
   function onPointerMove(e: PointerEvent) {
-    if (!dragging) return;
+    if (!activePointers.has(e.pointerId)) return;
     e.preventDefault();
     const midi = midiFromPointer(e);
-    if (midi !== null) onkeyclick?.(midi);
+    if (midi === null) return;
+
+    const prev = activePointers.get(e.pointerId);
+    if (prev !== midi) {
+      activePointers = new Map(activePointers);
+      activePointers.set(e.pointerId, midi);
+      // Last-moved pointer sets f0
+      onkeyclick?.(midi);
+    }
   }
 
   function onPointerUp(e: PointerEvent) {
-    dragging = false;
+    activePointers = new Map(activePointers);
+    activePointers.delete(e.pointerId);
     svgEl?.releasePointerCapture(e.pointerId);
+
+    // If other pointers still active, last remaining sets f0
+    if (activePointers.size > 0) {
+      const entries = [...activePointers.entries()];
+      const lastMidi = entries[entries.length - 1][1];
+      onkeyclick?.(lastMidi);
+    }
+  }
+
+  function onPointerCancel(e: PointerEvent) {
+    onPointerUp(e);
   }
 </script>
 
@@ -181,7 +215,7 @@
   onpointerdown={onPointerDown}
   onpointermove={onPointerMove}
   onpointerup={onPointerUp}
-  onpointercancel={onPointerUp}
+  onpointercancel={onPointerCancel}
 >
   <!-- White keys (rendered first, below black keys) -->
   {#each whiteKeys as key (key.midi)}
