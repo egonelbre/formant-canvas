@@ -68,7 +68,12 @@ Plans:
   4. User can drag the current-vowel handle on the F1/F2 chart and hear the vowel change, see the piano harmonic amplitudes update, and see which vowel region they are inside — all within one animation frame, with no audio glitches while dragging at 60 fps
   5. User can load a vowel preset (cardinal /a e i o u/ plus the 12 Hillenbrand vowels) and see the handle snap, the harmonics update, and hear the vowel load
   6. User can switch voice type (male / female / child) and see the per-voice formant range overlays change on the F1/F2 chart
-**Plans**: TBD
+**Plans:** 4 plans
+Plans:
+- [ ] 03-01-PLAN.md — TDD: Hillenbrand vowel dataset + formant bandpass magnitude response functions
+- [ ] 03-02-PLAN.md — VowelChart component (F1/F2 diagram, ellipses, drag handle, presets, overlays)
+- [ ] 03-03-PLAN.md — PianoHarmonics component (5-octave piano, harmonic bars, formant curves, click-to-tune)
+- [ ] 03-04-PLAN.md — App integration (layout, wiring, CSS tokens) + human verification of linked updates
 **UI hint**: yes
 
 ### Phase 4: Vocal Strategies
@@ -115,7 +120,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 |-------|----------------|--------|-----------|
 | 1. Audio Closed Loop | 3/3 | Complete | 2026-04-12 |
 | 2. Voice Controls & Expression | 0/6 | Planning complete | - |
-| 3. Linked Visualizations | 0/TBD | Not started | - |
+| 3. Linked Visualizations | 0/4 | Planning complete | - |
 | 4. Vocal Strategies | 0/TBD | Not started | - |
 | 5. Presets, Sharing, Undo/Redo | 0/TBD | Not started | - |
 | 6. Pedagogy UI & Polish | 0/TBD | Not started | - |
