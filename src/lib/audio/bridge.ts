@@ -1,5 +1,6 @@
 import { bandwidthToQ } from './dsp/formant-utils.ts';
 import { voiceParams } from './state.svelte.ts';
+import glottalProcessorUrl from './worklet/glottal-processor.ts?worker&url';
 
 /**
  * AudioBridge: connects the Svelte VoiceParams store to the Web Audio graph.
@@ -28,20 +29,8 @@ export class AudioBridge {
 
     this.ctx = new AudioContext();
 
-    // Load worklet processor with TS fallback (RESEARCH.md Q1)
-    try {
-      const workletUrl = new URL('./worklet/glottal-processor.ts', import.meta.url);
-      await this.ctx.audioWorklet.addModule(workletUrl);
-    } catch (primaryErr) {
-      // Fallback: Vite did not transpile .ts for addModule — try .js
-      try {
-        const fallbackUrl = new URL('./worklet/glottal-processor.js', import.meta.url);
-        await this.ctx.audioWorklet.addModule(fallbackUrl);
-      } catch (fallbackErr) {
-        console.error('Primary worklet load failed:', primaryErr);
-        throw fallbackErr;
-      }
-    }
+    // Load worklet processor via Vite ?url import (transpiled to JS in production)
+    await this.ctx.audioWorklet.addModule(glottalProcessorUrl);
 
     // Create the glottal source worklet node
     this.workletNode = new AudioWorkletNode(this.ctx, 'glottal-processor');
