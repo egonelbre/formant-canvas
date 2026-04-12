@@ -111,9 +111,10 @@
     const data = vowel[currentGroup];
     voiceParams.f1Freq = data.f1;
     voiceParams.f2Freq = data.f2;
-    voiceParams.f3Freq = data.f3;
-    voiceParams.f4Freq = Math.round(data.f3 * 1.25);
-    voiceParams.f5Freq = Math.round(data.f3 * 1.6);
+    const higher = interpolateHigherFormants(data.f1, data.f2, currentGroup);
+    voiceParams.f3Freq = higher.f3;
+    voiceParams.f4Freq = higher.f4;
+    voiceParams.f5Freq = Math.round(higher.f4 * 1.2);
   }
 </script>
 
