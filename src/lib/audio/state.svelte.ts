@@ -1,4 +1,5 @@
 import type { FormantParams, PhonationMode } from '../types.ts';
+import type { StrategyId, StrategyMode } from '../strategies/types.ts';
 
 /**
  * Single source of truth for all voice synthesis parameters.
@@ -19,6 +20,7 @@ export class VoiceParams {
   f2Freq = $state(1090);   f2BW = $state(110);  f2Gain = $state(0.7);
   f3Freq = $state(2440);   f3BW = $state(170);  f3Gain = $state(0.3);
   f4Freq = $state(3300);   f4BW = $state(320);  f4Gain = $state(0.15);
+  f5Freq = $state(4200);   f5BW = $state(400);  f5Gain = $state(0.08);
 
   // Master
   masterGain = $state(0.5);
@@ -41,6 +43,11 @@ export class VoiceParams {
   // Voice preset tracking (D-12)
   voicePreset = $state<string | null>(null);  // null = custom
 
+  // Strategy (Phase 4)
+  strategyId = $state<StrategyId>('speech');
+  strategyMode = $state<StrategyMode>('off');  // 'off' | 'overlay' | 'locked'
+  strategyOverriding = $state(false);  // true during temporary drag override (D-14)
+
   /** Read all synth-relevant reactive fields to establish dependency tracking.
    *  Co-located here so new parameters only need to be added in one place. */
   get snapshot() {
@@ -49,6 +56,7 @@ export class VoiceParams {
       f2Freq: this.f2Freq, f2BW: this.f2BW, f2Gain: this.f2Gain,
       f3Freq: this.f3Freq, f3BW: this.f3BW, f3Gain: this.f3Gain,
       f4Freq: this.f4Freq, f4BW: this.f4BW, f4Gain: this.f4Gain,
+      f5Freq: this.f5Freq, f5BW: this.f5BW, f5Gain: this.f5Gain,
       masterGain: this.masterGain, aspirationLevel: this.aspirationLevel,
       openQuotient: this.openQuotient, vibratoRate: this.vibratoRate,
       vibratoExtent: this.vibratoExtent, jitterAmount: this.jitterAmount,
@@ -63,6 +71,7 @@ export class VoiceParams {
       { freq: this.f2Freq, bw: this.f2BW, gain: this.f2Gain },
       { freq: this.f3Freq, bw: this.f3BW, gain: this.f3Gain },
       { freq: this.f4Freq, bw: this.f4BW, gain: this.f4Gain },
+      { freq: this.f5Freq, bw: this.f5BW, gain: this.f5Gain },
     ];
   }
 }
