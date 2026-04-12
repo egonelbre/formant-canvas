@@ -53,7 +53,7 @@ html, body {
   display: grid;
   height: 100dvh;
   height: 100vh;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto 1fr 30vh;
   grid-template-columns: 1fr 8cm;
   grid-template-areas:
     "header  header"

@@ -267,7 +267,7 @@
     class="piano-harmonics"
     bind:this={svgEl}
     viewBox="0 0 {svgWidth} {SVG_HEIGHT}"
-    preserveAspectRatio="xMidYMid meet"
+    preserveAspectRatio="none"
     role="group"
     aria-label="Piano keyboard with harmonics"
     style="touch-action: none; cursor: {dragMode === 'formant' ? 'ew-resize' : 'default'};"
@@ -368,11 +368,12 @@
 <style>
   .piano-harmonics-wrapper {
     width: 100%;
+    height: 100%;
     overflow: hidden;
   }
   .piano-harmonics {
     width: 100%;
-    height: auto;
+    height: 100%;
     display: block;
   }
 </style>
