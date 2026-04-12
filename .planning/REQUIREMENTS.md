@@ -1,111 +1,49 @@
 # Requirements: Formant Canvas
 
-**Defined:** 2026-04-11
-**Core Value:** Linked exploration — audio and visuals update together in real time as any parameter changes.
+**Defined:** 2026-04-13
+**Core Value:** Linked exploration — audio and visuals are tightly coupled, so changing a parameter is simultaneously heard and seen across every view.
 
-## v1 Requirements
+## v0.2 Requirements
 
-Requirements for initial release. Each maps to roadmap phases.
+Requirements for milestone v0.2: Voice Model Depth. Each maps to roadmap phases.
 
-### Audio Engine
+### LF Glottal Model
 
-- [ ] **AUDIO-01**: Glottal pulse source generates continuous audio via AudioWorklet, starting from a Rosenberg-style model (LF deferred)
-- [ ] **AUDIO-02**: User can control glottal parameters: open quotient / phonation type (breathy ↔ modal ↔ pressed) with plain-language labels
-- [ ] **AUDIO-03**: Formant filter chain with F1–F4 tunable by center frequency and bandwidth (implementation uses native `BiquadFilterNode` in parallel/cascade; topology can be upgraded later)
-- [ ] **AUDIO-04**: Vibrato with controllable rate (Hz) and extent (cents), applied to f₀
-- [ ] **AUDIO-05**: Jitter (random pitch perturbation) with controllable amount
-- [ ] **AUDIO-06**: All continuous parameters smooth over time so direct manipulation produces no zipper/click artifacts (`setTargetAtTime` for native nodes; audio-rate smoothing for worklet parameters)
-- [ ] **AUDIO-07**: Play/stop transport, master volume, and mute respond instantly
-- [ ] **AUDIO-08**: Audio engine works in current Chromium, Firefox, and Safari including correct `AudioContext` resume on first user gesture
+- [ ] **LF-01**: User can select between Rosenberg and LF glottal pulse models
+- [ ] **LF-02**: LF model uses Rd parameterization (single tense-to-breathy slider)
+- [ ] **LF-03**: LF model uses band-limited wavetables to avoid aliasing at high f0
+- [ ] **LF-04**: User can see Rd decomposition view showing how Rd maps to underlying LF parameters (Ra, Rk, Rg, Ta)
 
-### Voice Controls
+### Formant Filters
 
-- [ ] **VOICE-01**: User can set fundamental frequency (f₀) via a dedicated pitch control
-- [ ] **VOICE-02**: User can drive f₀ from a QWERTY piano mapping (standard DAW key layout)
-- [ ] **VOICE-03**: On-screen readout shows f₀ as Hz, note name with octave, and cents deviation
-- [ ] **VOICE-04**: Voice presets set f₀ range + starting formants for at least male tenor/baritone/bass, female soprano/mezzo/alto, and child
-- [ ] **VOICE-05**: Phonation presets (breathy / modal / flow / pressed) load matching glottal defaults
+- [ ] **FILT-01**: User can select between parallel and cascade formant filter topologies
+- [ ] **FILT-02**: Cascade topology produces correct relative formant amplitudes automatically (Klatt 1980)
+- [ ] **FILT-03**: Higher-order resonances (4th-order, two biquads per formant) for sharper peaks
+- [ ] **FILT-04**: Formant chain extended to F5-F8 (higher formants)
+- [ ] **FILT-05**: Nasal pole-zero filter pair for nasal vowels/consonants
+- [ ] **FILT-06**: Improved aspiration noise source with spectral shaping
 
-### Vowel Chart (F1/F2 Diagram)
+### Vocal Tract Visualization
 
-- [ ] **VOWEL-01**: F1/F2 diagram renders with F1 on one axis and F2 on the other, in phonetics-standard orientation
-- [ ] **VOWEL-02**: Hillenbrand (1995) vowel data is embedded and drawn as IPA-labelled regions/ellipses in the background
-- [ ] **VOWEL-03**: A draggable handle represents the current vowel — dragging it updates F1/F2 in the audio engine in real time
-- [ ] **VOWEL-04**: Vowel presets (cardinal /a e i o u/ plus the Hillenbrand 12) snap the handle to the target formants
-- [ ] **VOWEL-05**: Data source (Hillenbrand 1995) is cited visibly on the chart
+- [ ] **TRACT-01**: Anatomical midsagittal cross-section SVG that deforms based on current formant values in real time
+- [ ] **TRACT-02**: Anatomical landmark labels (tongue, palate, pharynx, lips, velum) on the cross-section
+- [ ] **TRACT-03**: User can drag on the vocal tract visualization to change formants (bidirectional linked manipulation)
 
-### Piano / Harmonics View
+## Future Requirements
 
-- [ ] **PIANO-01**: A piano keyboard displays at least three octaves with standard C-labelled keys
-- [ ] **PIANO-02**: The current f₀ is highlighted on the piano; the overtone series (≥12 harmonics) is drawn as markers on the correct keys
-- [ ] **PIANO-03**: Each harmonic marker shows its amplitude by analytically evaluating the formant filter response at that harmonic frequency
-- [ ] **PIANO-04**: F1, F2, F3, F4 centers are drawn as overlay markers on the piano so the relationship between formants and harmonics is visible
-- [ ] **PIANO-05**: Clicking or tapping a key sets f₀ to that note
+Deferred to future milestones. Tracked but not in current roadmap.
 
-### Formant Ranges
+### Extended Voice Models
 
-- [ ] **RANGE-01**: Formant occupancy is visualized — at minimum, draw Hillenbrand-derived ellipses per vowel on the F1/F2 chart
-- [ ] **RANGE-02**: Per-voice-type formant ranges (male/female/child) are visible as overlays so users see how the ranges differ
-- [ ] **RANGE-03**: The current F1/F2 position shows which vowel region(s) it falls inside
+- **EXT-01**: Additional glottal pulse models (KLGLOTT88, polynomial approximations)
+- **EXT-02**: Full physical vocal tract modeling (Kelly-Lochbaum waveguide)
+- **EXT-03**: Shimmer (amplitude perturbation) as a separate micro-variation control
 
-### Vocal Strategies
+### Advanced Visualizations
 
-- [x] **STRAT-01**: App supports at least: speech (untuned), R1:f₀, R1:2f₀, R1:3f₀, R2:2f₀, R2:3f₀, and the singer's-formant cluster
-- [x] **STRAT-02**: Strategies can be displayed as **overlay** — target lines/points drawn on the piano and F1/F2 chart while the user tunes manually
-- [x] **STRAT-03**: Strategies can be **locked** — the app auto-tunes the relevant formant(s) as f₀ changes so the ratio is maintained
-- [x] **STRAT-04**: When a strategy is locked and the user drags a locked formant directly, the interaction is resolved predictably (either drag is blocked with visible feedback, or strategy unlocks — behavior is consistent and documented in-app)
-- [x] **STRAT-05**: Strategy selector is a one-click preset list with plain-language descriptions next to the notation
-
-### Linked Updates
-
-- [ ] **LINK-01**: Any parameter change from any view updates the audio output AND the F1/F2 chart AND the piano harmonics AND all relevant readouts within one animation frame
-- [ ] **LINK-02**: All views read from a single source-of-truth state store; no view maintains its own copy of formant/source/f₀ state
-- [ ] **LINK-03**: Dragging a formant on the F1/F2 chart at 60fps does not cause audio glitches
-
-### Sharing & History
-
-- [ ] **SHARE-01**: Current state can be serialized to a URL that, when opened, restores the exact same state
-- [ ] **SHARE-02**: Undo and redo are available via keyboard and UI controls for at least the last 32 state changes
-
-### Pedagogy UI
-
-- [ ] **UI-01**: Default view shows at most 7 primary controls; advanced parameters are behind a disclosure ("Advanced" / "Expert")
-- [ ] **UI-02**: Every primary control has a hover/focus tooltip explaining in plain language what it does and why it matters
-- [ ] **UI-03**: Expert mode exposes Rd / OQ / spectral tilt / individual formant bandwidths
-- [ ] **UI-04**: Clean modern aesthetic with readable typography, proper spacing, and at minimum a dark theme
-- [ ] **UI-05**: Layout is responsive enough to be usable on a desktop browser window down to 1024×700
-- [ ] **UI-06**: All draggable visual elements use Pointer Events with `touch-action: none` so they are usable with touch / pen on tablets
-
-## v2 Requirements
-
-Deferred to future release. Tracked but not in current roadmap.
-
-### Audio Engine
-
-- **AUDIO-V2-01**: LF glottal pulse model (state-of-the-art replacement for Rosenberg)
-- **AUDIO-V2-02**: Custom Klatt-style 2-pole resonator cascade in AudioWorklet (replaces BiquadFilterNode if pedagogical fidelity demands it)
-- **AUDIO-V2-03**: Shimmer (amplitude perturbation) as a separate micro-variation control
-- **AUDIO-V2-04**: F5 and F6 formants (for singer's-formant detail)
-
-### Visualizations
-
-- **VIZ-V2-01**: Spectrogram (time-frequency) view
-- **VIZ-V2-02**: Real-time spectrum display with log-frequency axis and dB magnitude
-- **VIZ-V2-03**: Waveform / oscilloscope view of the output signal
-- **VIZ-V2-04**: Trail/path display on F1/F2 chart showing recent vowel movement
-- **VIZ-V2-05**: Vowel-data source toggle (Peterson-Barney / Hillenbrand / Fant)
-
-### Features
-
-- **FEAT-V2-01**: Side-by-side compare mode — two states with A/B crossfade
-- **FEAT-V2-02**: Pitch-sweep / "play a scale" button to animate a strategy across a range
-- **FEAT-V2-03**: Web MIDI keyboard input
-- **FEAT-V2-04**: WAV / audio clip export via MediaRecorder
-- **FEAT-V2-05**: Snap-to-vowel toggle while dragging on the F1/F2 chart
-- **FEAT-V2-06**: IPA on-screen keyboard for vowel selection
-- **FEAT-V2-07**: Additional strategies (R1:4f₀, R1:5f₀, combined lock strategies, twang, whistle, SOVT)
-- **FEAT-V2-08**: Custom strategy editor (user-authored ratio rules)
-- **FEAT-V2-09**: Guided lesson mode with scripted walkthroughs
+- **VIZ-01**: Spectrogram view with formant tracking overlay
+- **VIZ-02**: Signal flow diagram visualization showing source-filter chain
+- **VIZ-03**: Rd decomposition animated view (parameter space exploration)
 
 ## Out of Scope
 
@@ -113,70 +51,37 @@ Explicitly excluded. Documented to prevent scope creep.
 
 | Feature | Reason |
 |---------|--------|
-| Microphone / real voice analysis | This is a synthesis visualizer, not an analyzer — different problem domain |
-| Articulatory tract model (Pink Trombone-style) | Pink Trombone already does it; this project is formant-based on purpose |
-| Cloud accounts / backend / shared preset library | Kept client-side for v1; URL sharing covers the real need |
-| ADSR / LFO matrix / reverb / general synth features | Not a music synth; stay focused on voice pedagogy |
-| AI / neural TTS / voice cloning | Opaque and non-pedagogical; undermines white-box goal |
-| Score / lyrics / piano-roll sequencing | Different product category (Vocaloid / Synthesizer V) |
-| Multi-user / realtime collaboration | Out of scope for v1; URL share link is enough |
-| Native app / PWA install | Web-first; reconsider later |
-| Mobile-first / phone layout | Desktop first; tablet supported where feasible, not a v1 gate |
+| Physical vocal tract modeling (Pink Trombone style) | Wrong abstraction — formant synthesis is the core, not waveguide simulation |
+| WASM compilation for DSP | No measured need; JS AudioWorklet performance is sufficient for this scope |
+| 3D vocal tract rendering | Complexity far exceeds pedagogical value; 2D sagittal section is standard |
+| Voice analysis / inverse filtering | Synthesis tool, not analyzer — doubles scope and problem domain |
+| Real-time topology switching without crossfade | Risk of clicks; keep graph static, crossfade or mute-switch |
 
 ## Traceability
 
-Which phases cover which requirements. Filled by roadmapper.
+Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUDIO-01 | Phase 1 | Pending |
-| AUDIO-02 | Phase 2 | Pending |
-| AUDIO-03 | Phase 1 | Pending |
-| AUDIO-04 | Phase 2 | Pending |
-| AUDIO-05 | Phase 2 | Pending |
-| AUDIO-06 | Phase 1 | Pending |
-| AUDIO-07 | Phase 2 | Pending |
-| AUDIO-08 | Phase 1 | Pending |
-| VOICE-01 | Phase 2 | Pending |
-| VOICE-02 | Phase 2 | Pending |
-| VOICE-03 | Phase 2 | Pending |
-| VOICE-04 | Phase 2 | Pending |
-| VOICE-05 | Phase 2 | Pending |
-| VOWEL-01 | Phase 3 | Pending |
-| VOWEL-02 | Phase 3 | Pending |
-| VOWEL-03 | Phase 3 | Pending |
-| VOWEL-04 | Phase 3 | Pending |
-| VOWEL-05 | Phase 3 | Pending |
-| PIANO-01 | Phase 3 | Pending |
-| PIANO-02 | Phase 3 | Pending |
-| PIANO-03 | Phase 3 | Pending |
-| PIANO-04 | Phase 3 | Pending |
-| PIANO-05 | Phase 3 | Pending |
-| RANGE-01 | Phase 3 | Pending |
-| RANGE-02 | Phase 3 | Pending |
-| RANGE-03 | Phase 3 | Pending |
-| STRAT-01 | Phase 4 | Complete |
-| STRAT-02 | Phase 4 | Complete |
-| STRAT-03 | Phase 4 | Complete |
-| STRAT-04 | Phase 4 | Complete |
-| STRAT-05 | Phase 4 | Complete |
-| LINK-01 | Phase 3 | Pending |
-| LINK-02 | Phase 1 | Pending |
-| LINK-03 | Phase 3 | Pending |
-| SHARE-01 | Phase 5 | Pending |
-| SHARE-02 | Phase 5 | Pending |
-| UI-01 | Phase 5 | Pending |
-| UI-02 | Phase 5 | Pending |
-| UI-03 | Phase 5 | Pending |
-| UI-04 | Phase 5 | Pending |
-| UI-05 | Phase 5 | Pending |
-| UI-06 | Phase 5 | Pending |
+| LF-01 | — | Pending |
+| LF-02 | — | Pending |
+| LF-03 | — | Pending |
+| LF-04 | — | Pending |
+| FILT-01 | — | Pending |
+| FILT-02 | — | Pending |
+| FILT-03 | — | Pending |
+| FILT-04 | — | Pending |
+| FILT-05 | — | Pending |
+| FILT-06 | — | Pending |
+| TRACT-01 | — | Pending |
+| TRACT-02 | — | Pending |
+| TRACT-03 | — | Pending |
 
 **Coverage:**
-- v1 requirements: 42 total (note: initial count of 43 was off-by-one; actual total is 42 across 9 categories)
-- Mapped to phases: 42
-- Unmapped: 0
+- v0.2 requirements: 13 total
+- Mapped to phases: 0
+- Unmapped: 13
 
 ---
-*Requirements defined: 2026-04-11*
-*Last updated: 2026-04-11 — traceability populated during roadmap creation*
+*Requirements defined: 2026-04-13*
+*Last updated: 2026-04-13 after initial definition*
