@@ -38,6 +38,7 @@
   async function handlePlayPause() {
     if (!bridgeInitialized) {
       await bridge.init();
+      bridge.syncParams(); // push current reactive state into freshly built graph
       bridgeInitialized = true;
     }
     if (voiceParams.playing) {
