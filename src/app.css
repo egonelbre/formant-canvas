@@ -47,6 +47,8 @@
 html, body {
     margin: 0;
     padding: 0;
+    /* Prevent double-tap zoom on tablet */
+    touch-action: manipulation;
 }
 
 .app-grid {

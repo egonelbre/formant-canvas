@@ -117,6 +117,14 @@
     r1Chart: 'R1 (First Resonance) strategy chart. Diagonal lines show harmonics of f₀. When a strategy is active, the formant tracks the selected harmonic. Shaded region shows typical R1 range for the voice type.',
     r2Chart: 'R2 (Second Resonance) strategy chart. Higher harmonics (2f₀, 3f₀) shown as diagonals. Shaded region shows typical R2 range for the voice type.',
   };
+
+  function toggleFullscreen() {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      document.documentElement.requestFullscreen();
+    }
+  }
 </script>
 
 <svelte:document onkeydown={handleKeyDown} onkeyup={handleKeyUp} />
@@ -132,6 +140,7 @@
       <input type="checkbox" bind:checked={expertMode} />
       <span class="toggle-track"><span class="toggle-thumb"></span></span>
     </label>
+    <button class="fullscreen-btn" onclick={toggleFullscreen} aria-label="Toggle fullscreen">&#x26F6;</button>
   </header>
 
   <!-- PANELS: horizontal control strip -->
@@ -249,6 +258,26 @@
   .expert-toggle input:checked + .toggle-track .toggle-thumb {
     transform: translateX(16px);
     border-color: var(--color-accent);
+  }
+
+  .fullscreen-btn {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    font-size: 16px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+  }
+  .fullscreen-btn:hover {
+    background: var(--color-hover);
+    color: var(--color-text);
   }
 
   /* Horizontal control panels */
