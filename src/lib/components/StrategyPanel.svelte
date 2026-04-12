@@ -9,12 +9,6 @@
   }
   let { section = 'all' }: Props = $props();
 
-  const MODES: { key: StrategyMode; label: string }[] = [
-    { key: 'off', label: 'Off' },
-    { key: 'overlay', label: 'Overlay' },
-    { key: 'locked', label: 'Locked' },
-  ];
-
   function selectR1(id: R1Strategy | null) {
     voiceParams.autoStrategy = false;
     voiceParams.r1Strategy = voiceParams.r1Strategy === id ? null : id;
@@ -34,7 +28,7 @@
     voiceParams.strategyMode = mode;
   }
 
-  function clearAll() {
+  function selectSpeech() {
     voiceParams.autoStrategy = false;
     voiceParams.r1Strategy = null;
     voiceParams.r2Strategy = null;
@@ -42,13 +36,7 @@
     voiceParams.strategyMode = 'off';
   }
 
-  let hasAnyStrategy = $derived(
-    voiceParams.r1Strategy !== null ||
-    voiceParams.r2Strategy !== null ||
-    voiceParams.singerFormant
-  );
-
-  function toggleAuto() {
+  function selectAuto() {
     voiceParams.autoStrategy = !voiceParams.autoStrategy;
     if (voiceParams.autoStrategy) {
       const rec = pickStrategy(voiceParams.f0, voiceParams.voicePreset ?? 'baritone');
@@ -60,89 +48,63 @@
       }
     }
   }
+
+  let isSpeech = $derived(
+    !voiceParams.autoStrategy &&
+    voiceParams.r1Strategy === null &&
+    voiceParams.r2Strategy === null &&
+    !voiceParams.singerFormant
+  );
 </script>
 
 <section class="strategy-section">
   {#if section === 'all' || section === 'mode'}
-    <div class="strategy-header">
-      <h2 class="section-heading">Strategy</h2>
-      <button
-        class="auto-btn"
-        class:auto-active={voiceParams.autoStrategy}
-        onclick={toggleAuto}
-      >{voiceParams.autoStrategy ? 'Auto ✓' : 'Auto'}</button>
+    <h2 class="section-heading">Strategy</h2>
+    <div class="option-list">
+      <button class="option" class:active={isSpeech} onclick={selectSpeech}>
+        Speech
+      </button>
+      <button class="option" class:active={voiceParams.autoStrategy} onclick={selectAuto}>
+        Auto
+      </button>
+      <button class="option" class:active={voiceParams.strategyMode === 'off' && !isSpeech && !voiceParams.autoStrategy} onclick={() => selectMode('off')}>
+        Off
+      </button>
+      <button class="option" class:active={voiceParams.strategyMode === 'overlay'} onclick={() => selectMode('overlay')}>
+        Overlay
+      </button>
+      <button class="option" class:active={voiceParams.strategyMode === 'locked'} onclick={() => selectMode('locked')}>
+        Locked
+      </button>
     </div>
-
-    <button
-      class="strategy-btn speech-btn"
-      class:active={!hasAnyStrategy}
-      onclick={clearAll}
-    >
-      <span class="strategy-notation">Speech</span>
-    </button>
-
-    <div class="mode-toggle">
-      {#each MODES as mode (mode.key)}
-        <button
-          class="mode-chip"
-          class:selected={voiceParams.strategyMode === mode.key}
-          onclick={() => selectMode(mode.key)}
-        >
-          {mode.label}
-        </button>
-      {/each}
-    </div>
-
-    {#if voiceParams.strategyMode === 'locked'}
-      <p class="mode-hint">Auto-tune formants to pitch. Drag to override.</p>
-    {:else if voiceParams.strategyMode === 'overlay'}
-      <p class="mode-hint">Targets shown visually.</p>
-    {/if}
   {/if}
 
   {#if section === 'all' || section === 'r1'}
-    <div class="strategy-group">
-      <h3 class="group-heading">R1</h3>
-      <div class="strategy-list">
-        {#each R1_LIST as id (id)}
-          {@const def = R1_STRATEGIES[id]}
-          <button
-            class="strategy-btn"
-            class:active={voiceParams.r1Strategy === id}
-            onclick={() => selectR1(id)}
-          >
-            <span class="strategy-notation">{def.notation}</span>
-          </button>
-        {/each}
-      </div>
+    <h3 class="group-heading">R1</h3>
+    <div class="option-list">
+      {#each R1_LIST as id (id)}
+        {@const def = R1_STRATEGIES[id]}
+        <button class="option" class:active={voiceParams.r1Strategy === id} onclick={() => selectR1(id)}>
+          {def.notation}
+        </button>
+      {/each}
     </div>
   {/if}
 
   {#if section === 'all' || section === 'r2'}
-    <div class="strategy-group">
-      <h3 class="group-heading">R2</h3>
-      <div class="strategy-list">
-        {#each R2_LIST as id (id)}
-          {@const def = R2_STRATEGIES[id]}
-          <button
-            class="strategy-btn"
-            class:active={voiceParams.r2Strategy === id}
-            onclick={() => selectR2(id)}
-          >
-            <span class="strategy-notation">{def.notation}</span>
-          </button>
-        {/each}
-      </div>
+    <h3 class="group-heading">R2</h3>
+    <div class="option-list">
+      {#each R2_LIST as id (id)}
+        {@const def = R2_STRATEGIES[id]}
+        <button class="option" class:active={voiceParams.r2Strategy === id} onclick={() => selectR2(id)}>
+          {def.notation}
+        </button>
+      {/each}
     </div>
-
-    <div class="strategy-group">
-      <h3 class="group-heading">Singer's F</h3>
-      <button
-        class="strategy-btn singer-toggle"
-        class:active={voiceParams.singerFormant}
-        onclick={toggleSingerFormant}
-      >
-        <span class="strategy-notation">F3-F4-F5</span>
+    <h3 class="group-heading">Singer's F</h3>
+    <div class="option-list">
+      <button class="option" class:active={voiceParams.singerFormant} onclick={toggleSingerFormant}>
+        F3-F4-F5
       </button>
     </div>
   {/if}
@@ -155,83 +117,12 @@
     gap: var(--spacing-xs, 4px);
   }
 
-  .strategy-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
   .section-heading {
     font-size: 13px;
     font-weight: 600;
     line-height: 1.2;
     color: var(--color-text);
     margin: 0;
-  }
-
-  .auto-btn {
-    padding: 2px 8px;
-    font-size: 11px;
-    border-radius: var(--radius-pill, 16px);
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    color: var(--color-text-secondary);
-    cursor: pointer;
-  }
-
-  .auto-btn:hover {
-    background: var(--color-hover);
-    color: var(--color-text);
-  }
-
-  .auto-btn.auto-active {
-    background: var(--color-accent);
-    border-color: var(--color-accent);
-    color: #fff;
-  }
-
-  .mode-toggle {
-    display: flex;
-    gap: var(--spacing-xs, 4px);
-  }
-
-  .mode-chip {
-    padding: 4px 8px;
-    border-radius: var(--radius-pill, 16px);
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    color: var(--color-text);
-    font-size: 12px;
-    cursor: pointer;
-    transition: background 0.1s, border-color 0.1s, color 0.1s;
-  }
-
-  .mode-chip:hover {
-    background: var(--color-hover);
-  }
-
-  .mode-chip.selected {
-    background: var(--color-active);
-    border: 2px solid var(--color-accent);
-    color: var(--color-accent);
-    padding: 3px 7px;
-  }
-
-  .speech-btn {
-    margin-bottom: 0;
-  }
-
-  .mode-hint {
-    font-size: 11px;
-    color: var(--color-text-secondary);
-    margin: 0;
-    line-height: 1.3;
-  }
-
-  .strategy-group {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
   }
 
   .group-heading {
@@ -243,16 +134,14 @@
     margin: 0;
   }
 
-  .strategy-list {
+  .option-list {
     display: flex;
     flex-direction: column;
     gap: 2px;
   }
 
-  .strategy-btn {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
+  .option {
+    display: block;
     width: 100%;
     padding: 4px 8px;
     border-radius: var(--radius-sm, 6px);
@@ -262,19 +151,16 @@
     cursor: pointer;
     transition: background 0.1s;
     text-align: left;
+    font-size: 12px;
+    font-weight: 600;
   }
 
-  .strategy-btn:hover {
+  .option:hover {
     background: var(--color-hover);
   }
 
-  .strategy-btn.active {
+  .option.active {
     background: var(--color-accent);
     color: #fff;
-  }
-
-  .strategy-notation {
-    font-size: 12px;
-    font-weight: 600;
   }
 </style>

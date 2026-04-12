@@ -114,10 +114,9 @@
 <div class="app-grid">
   <!-- HEADER -->
   <header class="app-header">
-    <TransportBar onplayclick={handlePlayPause} {bridgeInitialized} {expertMode} />
-    <div class="header-spacer"></div>
     <VoicePresets {expertMode} />
     <div class="header-spacer"></div>
+    <TransportBar onplayclick={handlePlayPause} {bridgeInitialized} {expertMode} />
     <label class="expert-toggle">
       <span class="expert-label">Expert</span>
       <input type="checkbox" bind:checked={expertMode} />
