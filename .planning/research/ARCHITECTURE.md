@@ -1,553 +1,481 @@
 # Architecture Research
 
-**Domain:** Real-time voice synthesizer + linked visualizations (Svelte + TypeScript + Web Audio API, static web app)
-**Researched:** 2026-04-11
-**Confidence:** HIGH (Web Audio + Svelte patterns are well-established; DSP choices verified against MDN/Chrome docs)
+**Domain:** v0.2 Voice Model Depth -- LF glottal model, cascade formant filters, vocal tract visualization
+**Researched:** 2026-04-13
+**Confidence:** HIGH (existing codebase patterns are clear; LF model and cascade topology are well-documented in speech synthesis literature)
 
-## TL;DR Recommendation
+## TL;DR: Integration Strategy
 
-1. **One source of truth:** a Svelte `$state` store (`voiceState`) holding every audible/visible parameter as plain numbers. UI writes to it, visualizations read from it, and an `AudioBridge` forwards changes to the audio thread.
-2. **DSP runs inside a single custom `AudioWorkletProcessor`** (`VoiceProcessor`) for the glottal pulse + formant biquad chain. Formant frequencies, bandwidths, gains, F0, vibrato, and jitter are declared as `AudioParam`s (k-rate is fine for formants; a-rate for F0/vibrato). Non-numeric things (preset IDs, strategy enum, reset) go through `port.postMessage`.
-3. **Visualizations run on `requestAnimationFrame`** and read from the *same* `voiceState` store the UI writes to — they never pull data back from the audio thread. This works because the store **is** the audio engine's input, so UI + viz + DSP are all seeing the same parameter snapshot within one microtask.
-4. **The "Strategy Engine" is pure functions** (`strategy.ts`) that live on the main thread and rewrite formant targets in the store whenever F0 or the active strategy changes. The audio thread never knows strategies exist — it just sees formants change.
-5. **Build order:** State store → Worklet skeleton → UI sliders → Audio bridge (closed loop: slider makes sound) → Visualizations (F1/F2, piano, formant ranges) → Strategy engine → Presets/URL.
+The three v0.2 features integrate at different layers of the existing architecture:
 
-This keeps the 60fps viz trivially in sync: there is nothing to sync. The store is authoritative; audio and visuals are both subscribers.
+1. **LF glottal model** -- replaces `rosenbergSample()` inside the existing `GlottalProcessor` worklet. The worklet already handles postMessage parameter updates; add `glottalModel: 'rosenberg' | 'lf'` to the message protocol and an `lfSample()` function alongside the existing one. Use Fant's Rd meta-parameter (single slider) to control all four underlying LF parameters.
 
-## Standard Architecture
+2. **Cascade formant filters** -- moves formant filtering from the main-thread Web Audio graph (parallel `BiquadFilterNode`s in `AudioBridge`) into the worklet's `process()` loop as inline biquad computations in series. This is the largest architectural change because it replaces the current `buildFormantChain()` entirely.
 
-### System Overview
+3. **Vocal tract visualization** -- a new SVG Svelte component that reads from the existing `voiceParams` store (F1/F2/F3 frequencies) and derives midsagittal cross-section geometry. Pure visualization, no audio changes. Follows the same pattern as `VowelChart.svelte` and `FormantCurves.svelte`.
 
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│                         UI Layer (Svelte)                            │
-│  ┌──────────┐  ┌──────────────┐  ┌──────────┐  ┌────────────────┐    │
-│  │ Sliders  │  │ F1/F2 Chart  │  │ Piano    │  │ Preset Picker  │    │
-│  │ (knobs)  │  │ (drag)       │  │ (drag H) │  │ Strategy menu  │    │
-│  └────┬─────┘  └──────┬───────┘  └────┬─────┘  └────────┬───────┘    │
-│       │ write         │ write         │ write           │ write      │
-│       ▼               ▼               ▼                 ▼            │
-├──────────────────────────────────────────────────────────────────────┤
-│                    State Layer (Svelte $state)                       │
-│  ┌────────────────────────────────────────────────────────────────┐  │
-│  │  voiceState: { f0, vibrato, jitter, formants[4], strategy,...} │  │
-│  │  derived:    harmonics[], activeVowelTarget, strategyLocked    │  │
-│  └────────┬──────────────────────────┬───────────────────┬────────┘  │
-│           │ $effect                  │ $derived          │ $derived  │
-│           ▼                          ▼                   ▼           │
-│   ┌───────────────┐       ┌──────────────────┐   ┌──────────────┐    │
-│   │ AudioBridge   │       │  Strategy Engine │   │ Viz snapshot │    │
-│   │ (setTargetAt) │       │  (pure fns)      │   │ (read-only)  │    │
-│   └──────┬────────┘       └────────┬─────────┘   └──────┬───────┘    │
-│          │                         │ writes back         │          │
-│          │                         │ to voiceState       │          │
-│          │                         ▼                     │          │
-│          │                   voiceState                  │          │
-├──────────┼──────────────────────────────────────────────┬─┼──────────┤
-│          │                                              │ │          │
-│          ▼ AudioParam.setTargetAtTime                    │ ▼ rAF     │
-│     (audio thread)                                      (main thread)│
-│  ┌─────────────────────────────────────────┐  ┌─────────────────────┐│
-│  │ VoiceProcessor (AudioWorklet)           │  │ Visualization Layer ││
-│  │  ┌────────────┐ ┌─────────────────┐     │  │  F1/F2, piano,      ││
-│  │  │ Glottal    │→│ Formant chain   │→ out│  │  formant ranges,    ││
-│  │  │ pulse gen  │ │ (4× biquad BP)  │     │  │  spectrum (opt.)    ││
-│  │  └────────────┘ └─────────────────┘     │  └─────────────────────┘│
-│  └─────────────────────────────────────────┘                         │
-└──────────────────────────────────────────────────────────────────────┘
-```
+**Build order: LF model first, then cascade filters, then vocal tract viz.** LF is self-contained in the worklet. Cascade requires rearchitecting the audio graph. Vocal tract viz is independent of both.
 
-### Component Responsibilities
-
-| Component | Responsibility | Implementation |
-|-----------|----------------|----------------|
-| **State Store** (`src/state/voiceState.svelte.ts`) | Single source of truth for every audible/visible parameter. Plain JS numbers + flags. Exposes typed setters. | Svelte 5 `$state` rune, exported as a module-level class instance (the "Rune Class" pattern) |
-| **UI Controls** (`src/ui/controls/*`) | Render sliders/knobs/menus. Write to state store on pointer events. Read from store for display. | Svelte components, no local audio or viz logic |
-| **F1/F2 Chart** (`src/ui/viz/VowelChart.svelte`) | Draw vowel space + draggable formant point. Pointer drag writes `formants[0].freq`, `formants[1].freq`. | SVG or Canvas. Subscribes to `$derived(voiceState.formants)`. |
-| **Piano / Harmonics** (`src/ui/viz/PianoHarmonics.svelte`) | Draw 88-key piano + harmonics (nF0) + formant peaks overlaid by frequency. Dragging a harmonic = changing F0. | Canvas. Reads `$derived(voiceState.harmonics)` and `formants`. |
-| **Formant Range Overlay** (`src/ui/viz/FormantRanges.svelte`) | Show realistic ranges from Peterson-Barney/Hillenbrand tables. | Static data + read-only viz. |
-| **Strategy Engine** (`src/domain/strategy.ts`) | Pure functions: `(strategy, f0) → formantTargets`. Also a `$effect` that writes back into `voiceState` when strategy is locked. | TypeScript, zero dependencies. Fully unit-testable. |
-| **Audio Bridge** (`src/audio/AudioBridge.ts`) | Owns the `AudioContext`, instantiates the worklet node, and runs a `$effect` that forwards state changes into `AudioParam.setTargetAtTime()` (smooth) and `postMessage` (discrete). | Class, lifecycle tied to a "start audio" user gesture. |
-| **VoiceProcessor** (`src/audio/worklets/voice-processor.ts`) | The DSP. Reads its own `AudioParam`s each block, runs glottal pulse gen, feeds a 4-biquad bandpass chain, outputs samples. No knowledge of UI, strategies, vowels, or presets. | `AudioWorkletProcessor` subclass. Registered via `audioWorklet.addModule()`. |
-| **Preset System** (`src/domain/presets.ts`) | Named snapshots of `voiceState`. Load = `Object.assign(voiceState, preset)`. URL serialization via compact schema. | Pure data + `URLSearchParams` or base64url. |
-
-### Why this split works
-
-The critical insight: **UI, visualization, and audio are three *subscribers* to the same store.** None of them talks to each other. There is no "pull data back from audio for viz" problem because the viz never wanted audio's data — it wanted the *same parameters* audio is consuming, which are already in the store.
-
-## Recommended Project Structure
+## Existing Architecture (What We Have)
 
 ```
-src/
-├── state/
-│   ├── voiceState.svelte.ts      # $state rune class — single source of truth
-│   ├── derived.svelte.ts         # $derived: harmonics, vowel target, etc.
-│   └── schema.ts                 # TypeScript types + default values
-├── audio/
-│   ├── AudioBridge.ts            # AudioContext + worklet lifecycle + state→param $effect
-│   ├── worklets/
-│   │   ├── voice-processor.ts    # The AudioWorkletProcessor (compiled separately)
-│   │   ├── glottal.ts            # Glottal pulse generator (LF or Rosenberg)
-│   │   └── biquad-chain.ts       # 4× bandpass biquad
-│   └── index.ts                  # Public API: startAudio(), stopAudio()
-├── domain/
-│   ├── strategy.ts               # Pure: (strategy, f0) → formant targets. R1:2f, R1:f, ...
-│   ├── presets.ts                # Named presets + load/save
-│   ├── vowels.ts                 # Peterson-Barney / Hillenbrand tables
-│   ├── harmonics.ts              # f0 → harmonic frequencies
-│   └── url.ts                    # URL encode/decode state
-├── ui/
-│   ├── App.svelte
-│   ├── controls/                 # Sliders, knobs, menus — dumb widgets
-│   │   ├── Slider.svelte
-│   │   ├── FormantSliders.svelte
-│   │   └── StrategyPicker.svelte
-│   └── viz/                      # Visualization components
-│       ├── VowelChart.svelte     # F1/F2 diagram with drag
-│       ├── PianoHarmonics.svelte # Piano + harmonics + formant peaks
-│       ├── FormantRanges.svelte  # Realistic formant range overlay
-│       └── useRaf.svelte.ts      # rAF hook for Canvas-based viz
-├── lib/
-│   ├── dsp/                      # Pure DSP math, reusable in tests
-│   │   ├── biquad.ts             # RBJ cookbook coefficients
-│   │   └── glottal.ts            # Same pulse gen as worklet, pure
-│   └── math.ts
-└── main.ts                        # Bootstraps App, attaches to #app
+voiceParams ($state singleton)
+    |
+    +---> $effect in App.svelte calls bridge.syncParams()
+    |         |
+    |         +---> postMessage to worklet (f0, OQ, aspiration, vibrato, jitter, tilt)
+    |         +---> setTargetAtTime on BiquadFilterNode.frequency/Q (formants F1-F5)
+    |         +---> setTargetAtTime on GainNode (per-formant gains, master)
+    |
+    +---> $derived in Svelte components (VowelChart, PianoHarmonics, FormantCurves, etc.)
 ```
 
-### Structure Rationale
+**Audio graph (current):**
+```
+GlottalProcessor (worklet)
+    |
+    +---> BiquadF1 --> GainF1 --+
+    +---> BiquadF2 --> GainF2 --+--> SumGain --> MasterGain --> destination
+    +---> BiquadF3 --> GainF3 --+
+    +---> BiquadF4 --> GainF4 --+
+    +---> BiquadF5 --> GainF5 --+
+```
 
-- **`state/` at the top** (not under `ui/`): because audio and visuals are peer consumers of state. Putting state under UI would imply UI ownership, which is wrong.
-- **`audio/worklets/` is a separate build target:** Vite's `?worker` / `?url` imports for AudioWorklet files — the worklet cannot share Svelte/DOM code. Keep it ruthlessly self-contained.
-- **`domain/` holds everything that isn't rendering or DSP:** strategies, presets, vowel tables, URL codec. All pure TS, all unit-testable without a browser.
-- **`lib/dsp/` duplicates math that the worklet also uses:** the worklet can import `lib/dsp/biquad.ts` (pure TS, no DOM). This gives you a single source of truth for coefficient math and lets you test it in Vitest without spinning up an `AudioContext`.
-- **`ui/controls/` vs `ui/viz/`:** controls write, viz reads. Hard-enforce this split — if a viz component needs to write, it's because it's a direct-manipulation viz (like dragging a formant), which is fine, but the write goes to the store, not to the audio bridge.
+Key facts about existing code:
+- `GlottalProcessor` (worklet) inlines `rosenbergSample()`, vibrato, jitter, spectral tilt
+- `AudioBridge` builds parallel formant chain with native `BiquadFilterNode`s
+- `VoiceParams` class uses Svelte 5 `$state` runes; singleton `voiceParams` export
+- `formant-response.ts` computes parallel spectral envelope for visualization
+- All visualization components read directly from `voiceParams`
 
-## Architectural Patterns
+## Feature 1: LF Glottal Model
 
-### Pattern 1: Store-as-single-source-of-truth (Svelte 5 Rune Class)
+### What Changes
 
-**What:** One module-level class instance holds all reactive state as `$state` fields. UI, audio, and viz all import it and read/write directly. No events, no reducers, no Redux.
+| Component | Change Type | Details |
+|-----------|------------|---------|
+| `glottal-processor.ts` | **MODIFY** | Add `lfSample()` function alongside `rosenbergSample()`. Switch based on `glottalModel` param. |
+| `state.svelte.ts` | **MODIFY** | Add `glottalModel: 'rosenberg' | 'lf'` and `rd: number` (0.3-2.7) to `VoiceParams`. Add to `snapshot`. |
+| `bridge.ts` | **MODIFY** | Forward `glottalModel` and `rd` in `syncParams()` postMessage. |
+| `GlottalPulseVisual.svelte` | **MODIFY** | Render LF pulse shape when model is 'lf'. |
+| `src/lib/audio/dsp/lf.ts` | **NEW** | Pure function `lfSample(phase, Rd)` for unit testing outside worklet. |
+| `PhonationMode.svelte` | **MODIFY** | Add model selector (Rosenberg / LF) and Rd slider. |
 
-**When to use:** Small-to-medium apps (single dev, one window, no server sync) where the overhead of action/reducer plumbing exceeds the benefit.
+### LF Model Implementation
 
-**Trade-offs:**
-- ✅ Dead-simple mental model; every subscriber sees the same thing.
-- ✅ Svelte 5's fine-grained reactivity means only affected components re-render.
-- ✅ Works across `.svelte` and `.ts` files via `.svelte.ts` extension.
-- ❌ No history/undo out of the box (add a ring buffer if needed).
-- ❌ Easy to end up with one giant god-store; discipline the schema and use `$derived` aggressively.
+The LF model describes the *derivative* of glottal flow (not flow itself, unlike Rosenberg). Four underlying parameters (Tp, Te, Ta, Ee) are coupled. Fant (1995) showed they can be collapsed into a single "waveshape" parameter **Rd**:
 
-**Example:**
-```ts
-// state/voiceState.svelte.ts
-class VoiceState {
-  f0 = $state(220);
-  vibratoRate = $state(5.5);
-  vibratoDepth = $state(0.02);
-  jitter = $state(0.005);
-  formants = $state([
-    { freq: 700, bw: 80,  gain: 0 },
-    { freq: 1220, bw: 90, gain: 0 },
-    { freq: 2600, bw: 120, gain: 0 },
-    { freq: 3300, bw: 200, gain: -6 },
-  ]);
-  strategy = $state<StrategyId>('none');
-  strategyLocked = $state(false);
+- **Rd = 0.3-0.5**: Pressed voice (short open phase, abrupt closure, strong high harmonics)
+- **Rd = 0.8-1.2**: Modal voice (normal phonation)
+- **Rd = 1.5-2.7**: Breathy/relaxed voice (long open phase, gradual closure)
 
-  // derived (automatically recomputed)
-  harmonics = $derived.by(() =>
-    Array.from({ length: 16 }, (_, i) => this.f0 * (i + 1))
-  );
+**Implementation approach -- Rd-parameterized lookup:**
+
+```typescript
+// In glottal-processor.ts (inlined, no imports)
+function lfDerivativeSample(phase: number, Rd: number): number {
+  // Derive Tp, Te, Ta from Rd using Fant 1995 regression equations:
+  // Tp/T0 = (1/(2*Rd)) * (1.0 + Rd)  (approximate)
+  // Te/T0 = Tp/T0 + 0.5*(1 - Tp/T0)   (approximate)
+  // Ta = Rd * 0.01 (simplified)
+  //
+  // Open phase: E0 * exp(alpha*t) * sin(omega_g * t)
+  // Return phase: -Ee/Ta * (exp(-epsilon*(t-Te)) - exp(-epsilon*(T0-Te)))
+  //
+  // For real-time: pre-compute alpha, omega_g, epsilon per-cycle (when Rd changes)
+  // NOT per-sample. Cache in processor state.
 }
 
-export const voiceState = new VoiceState();
+// Integrate to get flow (Rosenberg outputs flow; LF native output is flow derivative)
+// Option A: integrate in worklet, output flow -- then existing formant filters work unchanged
+// Option B: output derivative, adjust formant filter gains to compensate
+// RECOMMENDATION: Option A. Numerically integrate with simple trapezoidal rule.
 ```
 
-### Pattern 2: `AudioParam` for smooth automation, `postMessage` for discrete events
+**Key insight:** The worklet currently outputs glottal *flow* (Rosenberg). The LF model natively produces flow *derivative*. To keep the rest of the audio chain unchanged, integrate the LF derivative inside the worklet to produce flow. This is a simple running sum with DC-leak.
 
-**What:** Every continuous DSP parameter is declared as an `AudioParam` in `parameterDescriptors` so the bridge can call `setTargetAtTime()` for zipper-free smoothing. Non-numeric or event-like things (preset load, voice type switch, reset pulse phase) go through `node.port.postMessage()`.
+### Parameter Mapping to Existing Phonation Modes
 
-**When to use:** Any custom AudioWorklet with parameters that change from the UI.
+| PhonationMode | Rosenberg (current) | LF (new) |
+|---------------|--------------------|----|
+| breathy | OQ=0.7, tilt=12, asp=0.08 | Rd=2.0 |
+| modal | OQ=0.6, tilt=6, asp=0.03 | Rd=1.0 |
+| flow | OQ=0.55, tilt=3, asp=0.02 | Rd=0.8 |
+| pressed | OQ=0.4, tilt=0, asp=0.01 | Rd=0.4 |
 
-**Trade-offs:**
-- ✅ `setTargetAtTime()` gives you free de-zippering; no manual smoothing in the worklet.
-- ✅ Sample-accurate (a-rate) or block-accurate (k-rate) — pick per parameter. Formant freqs: k-rate is plenty (128 samples ≈ 2.7ms at 48k). F0 with vibrato: a-rate for smoothness.
-- ✅ No main-thread jank even under GC pressure.
-- ❌ `AudioParam` only accepts numbers — strategy enums and presets must use postMessage.
-- ❌ You must declare every param up front in `parameterDescriptors` (static).
+When `glottalModel === 'lf'`, the phonation preset buttons set Rd instead of OQ/tilt/aspiration. The spectral tilt filter in the worklet can be bypassed for LF since tilt is inherent in the model shape.
 
-**Example:**
-```ts
-// audio/worklets/voice-processor.ts
-class VoiceProcessor extends AudioWorkletProcessor {
-  static get parameterDescriptors() {
-    return [
-      { name: 'f0',        defaultValue: 220, minValue: 40, maxValue: 1200, automationRate: 'a-rate' },
-      { name: 'vibRate',   defaultValue: 5.5, automationRate: 'k-rate' },
-      { name: 'vibDepth',  defaultValue: 0.02, automationRate: 'k-rate' },
-      { name: 'jitter',    defaultValue: 0.005, automationRate: 'k-rate' },
-      ...Array.from({ length: 4 }, (_, i) => [
-        { name: `f${i+1}Freq`, defaultValue: [700,1220,2600,3300][i], automationRate: 'k-rate' as const },
-        { name: `f${i+1}BW`,   defaultValue: [80,90,120,200][i],     automationRate: 'k-rate' as const },
-        { name: `f${i+1}Gain`, defaultValue: 0,                       automationRate: 'k-rate' as const },
-      ]).flat(),
-    ];
-  }
-  process(_in: Float32Array[][], out: Float32Array[][], params: Record<string, Float32Array>) {
-    // ... read params, run glottal + biquad chain, write out[0][0]
-    return true;
-  }
+### Data Flow (LF)
+
+```
+User clicks "LF" model selector
+    |
+    v
+voiceParams.glottalModel = 'lf'
+voiceParams.rd = 1.0 (default modal)
+    |
+    v (via $effect -> syncParams)
+bridge.syncParams() sends postMessage({ type: 'params', glottalModel: 'lf', rd: 1.0 })
+    |
+    v (worklet thread)
+GlottalProcessor switches to lfSample() in process() loop
+    |
+    v (same audio graph, same formant filters)
+Sound changes. No visualization changes needed except GlottalPulseVisual.
+```
+
+## Feature 2: Cascade Formant Filters
+
+### Why Move Filters Into the Worklet
+
+The current parallel topology uses native `BiquadFilterNode`s on the main audio thread. Cascade topology requires **serial chaining** where each filter's output feeds the next. Two options:
+
+**Option A: Keep native BiquadFilterNodes, rewire in series.**
+- Wire: worklet --> BiquadF1 --> BiquadF2 --> BiquadF3 --> BiquadF4 --> BiquadF5 --> MasterGain
+- Pros: Zero DSP code changes. Just reconnect nodes.
+- Cons: BiquadFilterNode type `bandpass` rolls off at -12dB/oct outside passband, which in cascade creates excessive roll-off in valleys between formants. Need `peaking` type instead -- but peaking on a cascade of 5 creates feedback-like peaks that are hard to tune. Per-formant gain control becomes meaningless (cascade sets relative amplitudes automatically).
+
+**Option B: Implement cascade resonators inside the worklet (RECOMMENDED).**
+- Move the biquad math into the worklet's `process()` loop as inline second-order sections.
+- Pros: Full control over filter topology. Can switch between cascade/parallel per-voice. Identical behavior to Klatt 1980. No node-reconnection overhead. Filter coefficients can be smoothed per-sample.
+- Cons: More DSP code in the worklet. Lose native BiquadFilterNode optimizations. Must inline biquad coefficient computation (Audio EQ Cookbook formulas, ~30 lines).
+
+**Recommendation: Option B.** The cascade topology in Klatt is specifically designed with resonators whose amplitude coupling produces natural vowel spectra *without* per-formant gain controls. This only works with direct coefficient manipulation, not through the limited BiquadFilterNode API.
+
+### What Changes
+
+| Component | Change Type | Details |
+|-----------|------------|---------|
+| `glottal-processor.ts` | **HEAVY MODIFY** | Add inline biquad state (x1, x2, y1, y2 per filter), coefficient computation, cascade/parallel process loops. Rename to `voice-processor.ts`. |
+| `bridge.ts` | **HEAVY MODIFY** | Remove `buildFormantChain()`. Formant params now go via postMessage instead of `setTargetAtTime`. Simpler graph: worklet --> MasterGain --> destination. |
+| `state.svelte.ts` | **MODIFY** | Add `filterTopology: 'parallel' | 'cascade'` to VoiceParams. |
+| `formant-response.ts` | **MODIFY** | Add `cascadeSpectralEnvelope()` that multiplies (instead of sums) individual formant responses. |
+| `FormantCurves.svelte` | **MODIFY** | Switch between additive (parallel) and multiplicative (cascade) envelope rendering. |
+| `src/lib/audio/dsp/biquad.ts` | **NEW** | Pure biquad coefficient functions for unit testing. |
+| `formant-utils.ts` | **MODIFY** | May need `bandwidthToCoeffs()` returning {b0,b1,b2,a1,a2} instead of Q value. |
+
+### Audio Graph (After Cascade)
+
+```
+VoiceProcessor (worklet) -- does EVERYTHING:
+  1. Generate glottal pulse (Rosenberg or LF)
+  2. Apply spectral tilt
+  3. Apply formant filters (cascade or parallel, inline biquad)
+  4. Mix aspiration noise
+  |
+  v
+MasterGain --> destination
+```
+
+The audio graph becomes trivially simple: one worklet node, one gain node, one destination. All DSP complexity lives inside the worklet.
+
+### Cascade Filter Implementation
+
+```typescript
+// Inline in voice-processor.ts
+interface BiquadState {
+  x1: number; x2: number;  // input history
+  y1: number; y2: number;  // output history
+  b0: number; b1: number; b2: number;  // feedforward
+  a1: number; a2: number;  // feedback (negated convention)
 }
-registerProcessor('voice-processor', VoiceProcessor);
+
+function processBiquad(state: BiquadState, input: number): number {
+  const out = state.b0 * input + state.b1 * state.x1 + state.b2 * state.x2
+             - state.a1 * state.y1 - state.a2 * state.y2;
+  state.x2 = state.x1; state.x1 = input;
+  state.y2 = state.y1; state.y1 = out;
+  return out;
+}
+
+// In process() loop, cascade mode:
+// sample = glottalPulse(phase);
+// sample = processBiquad(f1State, sample);  // F1 resonator
+// sample = processBiquad(f2State, sample);  // F2 resonator
+// sample = processBiquad(f3State, sample);  // F3 resonator
+// sample = processBiquad(f4State, sample);  // F4 resonator
+// sample = processBiquad(f5State, sample);  // F5 resonator
+
+// In process() loop, parallel mode (preserves current behavior):
+// let sum = 0;
+// for each formant: sum += processBiquad(fNState, glottalPulse) * fNGain;
+// sample = sum;
 ```
 
-```ts
-// audio/AudioBridge.ts — the $effect that forwards state changes
-$effect(() => {
-  const p = this.node.parameters;
-  const t = this.ctx.currentTime;
-  const ramp = 0.02; // 20ms smoothing
-  p.get('f0')!.setTargetAtTime(voiceState.f0, t, ramp);
-  voiceState.formants.forEach((f, i) => {
-    p.get(`f${i+1}Freq`)!.setTargetAtTime(f.freq, t, ramp);
-    p.get(`f${i+1}BW`)!.setTargetAtTime(f.bw, t, ramp);
-    p.get(`f${i+1}Gain`)!.setTargetAtTime(f.gain, t, ramp);
-  });
-});
+### Coefficient Update Strategy
+
+Biquad coefficients depend on (frequency, bandwidth, sampleRate). Recompute only when parameters change (detected via postMessage), not every sample. Use one-pole smoothing on the coefficients themselves to avoid clicks during transitions.
+
+**Important:** Cascade resonators in Klatt use **resonance** type (poles only), not bandpass. The transfer function is:
+```
+H(z) = 1 / (1 - 2*r*cos(theta)*z^-1 + r^2*z^-2)
+```
+where r = exp(-pi * bandwidth / sampleRate), theta = 2*pi * frequency / sampleRate.
+
+This is simpler than the full biquad (b0=1, b1=0, b2=0, a1=-2r*cos(theta), a2=r^2). No feedforward coefficients needed for cascade resonators.
+
+### Data Flow (Cascade)
+
+```
+User toggles "Cascade" topology
+    |
+    v
+voiceParams.filterTopology = 'cascade'
+    |
+    v ($effect -> syncParams)
+bridge.syncParams() sends postMessage({
+  type: 'params',
+  filterTopology: 'cascade',
+  f1Freq, f1BW, f2Freq, f2BW, ... (all formant params)
+})
+    |
+    v (worklet)
+VoiceProcessor recomputes resonator coefficients,
+switches process() to cascade loop
+    |
+    v
+formant-response.ts switches to multiplicative envelope
+FormantCurves.svelte re-renders cascade response shape
 ```
 
-### Pattern 3: rAF-driven viz reading state directly (no audio thread round-trip)
+### Migration Path
 
-**What:** Each visualization uses `requestAnimationFrame` and reads directly from `voiceState` / its `$derived` fields. It does **not** ask the audio thread for anything. For spectrum/waveform viz (optional), tap an `AnalyserNode` placed after the worklet.
+Because this is the biggest change, do it incrementally:
 
-**When to use:** Any viz that shows parameters (F1/F2, piano harmonics, formant ranges). Only use `AnalyserNode` when you need actual audio samples (oscilloscope, spectrum).
+1. **Step 1:** Add inline biquad processing in worklet alongside existing native nodes. Gate behind `filterTopology` flag. Keep native BiquadFilterNodes for `parallel`.
+2. **Step 2:** Verify cascade sounds correct by comparing output against klatt-syn reference.
+3. **Step 3:** Update visualization math in `formant-response.ts`.
+4. **Step 4:** Remove per-formant GainNodes from bridge (cascade doesn't use them).
+5. **Step 5:** Clean up -- simplify audio graph to worklet --> master --> dest.
 
-**Trade-offs:**
-- ✅ Trivially in sync — audio and viz are both reading the same numbers the user just set.
-- ✅ 60fps is easy; the viz isn't blocked on `postMessage` or `SharedArrayBuffer`.
-- ✅ Works offline, testable in jsdom (for non-Canvas bits).
-- ❌ You see the *target* state, not the actual DSP state after smoothing. For F1/F2 this is what you want (teaching tool). For a spectrum you'd want the real thing, hence `AnalyserNode`.
+## Feature 3: Vocal Tract Visualization
 
-**Example:**
-```ts
-// ui/viz/useRaf.svelte.ts
-export function useRaf(draw: () => void) {
-  let raf: number;
-  const tick = () => { draw(); raf = requestAnimationFrame(tick); };
-  $effect(() => {
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  });
+### What Changes
+
+| Component | Change Type | Details |
+|-----------|------------|---------|
+| `VocalTractView.svelte` | **NEW** | SVG midsagittal cross-section component |
+| `src/lib/data/vocal-tract-geometry.ts` | **NEW** | Baseline cross-section coordinates, deformation functions |
+| `App.svelte` | **MODIFY** | Add VocalTractView to the layout grid |
+
+### Architecture Approach
+
+The vocal tract visualization maps formant frequencies to articulatory positions using **acoustic-to-articulatory inversion** -- a simplified version. This is NOT a physical model; it is a pedagogical visualization that deforms a stylized midsagittal cross-section based on F1/F2.
+
+**Key mapping (well-established in phonetics):**
+- **F1 ~ jaw openness:** Higher F1 = more open jaw = larger oral cavity
+- **F2 ~ tongue frontness:** Higher F2 = tongue forward; Lower F2 = tongue back
+- **F3 ~ lip rounding (secondary):** Lower F3 = more rounded lips
+
+The component:
+1. Defines a baseline midsagittal outline (hard palate, soft palate, tongue body, tongue tip, lips, pharynx wall) as SVG path data
+2. Applies smooth deformations to the tongue body and jaw based on F1/F2 values
+3. Adjusts lip aperture based on F1 and optionally F3
+4. Uses `$derived` to recompute path data reactively from `voiceParams`
+
+### Geometry Model
+
+```typescript
+// vocal-tract-geometry.ts
+
+interface TractShape {
+  palate: Point[];        // fixed, doesn't deform
+  pharynxWall: Point[];   // fixed posterior wall
+  tongueBody: Point[];    // deforms based on F1/F2
+  tongueTip: Point[];     // derived from tongue body position
+  jaw: Point[];           // opens/closes with F1
+  lips: Point[];          // aperture varies with F1, rounding with F3
+  velum: Point[];         // fixed for oral vowels
+}
+
+// Deformation: interpolate between reference shapes for cardinal vowels
+// /i/ (high front): tongue up+front, small jaw opening
+// /a/ (low central): tongue down, large jaw opening
+// /u/ (high back): tongue up+back, rounded lips, small jaw opening
+
+function deformTract(f1: number, f2: number, f3: number): TractShape {
+  // Normalize f1/f2 to [0,1] within typical ranges:
+  // F1: 200-900 Hz, F2: 600-2500 Hz
+  const jawOpen = normalize(f1, 200, 900);     // 0=closed, 1=open
+  const tongueFront = normalize(f2, 600, 2500); // 0=back, 1=front
+  // Interpolate tongue body position between reference shapes
+  // Interpolate jaw angle
+  // Interpolate lip aperture
 }
 ```
+
+### SVG Structure
+
 ```svelte
-<!-- ui/viz/VowelChart.svelte -->
-<script lang="ts">
-  import { voiceState } from '../../state/voiceState.svelte';
-  let canvas: HTMLCanvasElement;
-  useRaf(() => {
-    const ctx = canvas.getContext('2d')!;
-    // read voiceState.formants[0].freq, [1].freq — draw point
-  });
-</script>
+<svg viewBox="0 0 300 400">
+  <!-- Fixed anatomy -->
+  <path d={palate} fill="none" stroke="var(--color-text)" />
+  <path d={pharynxWall} fill="none" stroke="var(--color-text)" />
+
+  <!-- Deformable parts -->
+  <path d={tongueBody} fill="var(--color-accent)" opacity="0.3" stroke="var(--color-accent)" />
+  <path d={jaw} fill="none" stroke="var(--color-text)" />
+  <path d={lips} fill="none" stroke="var(--color-text)" stroke-width="2" />
+
+  <!-- Airway highlight -->
+  <path d={airway} fill="var(--color-surface)" opacity="0.5" />
+
+  <!-- Labels -->
+  <text>lips</text>
+  <text>tongue</text>
+  <text>palate</text>
+  <text>pharynx</text>
+</svg>
 ```
 
-### Pattern 4: Direct manipulation = inverse mapping to the store
-
-**What:** When the user drags the formant point on the F1/F2 chart, the pointer handler converts pixel coords → Hz and writes to `voiceState.formants[0].freq` / `formants[1].freq`. The audio bridge's `$effect` then picks that up and ramps the `AudioParam`. Zero other wiring.
-
-**When to use:** Any draggable visualization.
-
-**Trade-offs:**
-- ✅ Symmetrical: slider and drag write to the exact same field.
-- ✅ Unit-testable in isolation (mock the canvas coords).
-- ❌ Be careful with `$state` arrays — mutating `formants[0].freq = x` works because Svelte 5 runes proxy objects, but only if `formants` was declared as `$state` with object members. Verify this on setup.
-
-### Pattern 5: Strategy engine as pure function + reactive effect
-
-**What:** `strategy.ts` exports `strategyTargets(strategy: StrategyId, f0: number): FormantTarget[]` as a pure function. A single `$effect` in the bridge watches `(strategy, strategyLocked, f0)` and, when locked, writes the computed targets back into `voiceState.formants`. That write ripples to audio and viz automatically.
-
-**When to use:** Any "derived write-back" — cases where you need `state → pure function → state`.
-
-**Trade-offs:**
-- ✅ Strategy logic is 100% testable without audio or UI.
-- ✅ Unlocking strategy is trivial: set `strategyLocked = false`, the effect stops writing, user is free to drag formants again.
-- ✅ The F1/F2 chart and piano automatically reflect the new formants because they subscribe to the store.
-- ❌ Be careful not to create feedback loops: the effect should read `f0` and `strategy` but only write `formants`. Never read `formants` inside the effect that writes to it.
-
-**Example:**
-```ts
-// domain/strategy.ts
-export type StrategyId = 'none' | 'R1:f' | 'R1:2f' | 'R2:2f' | 'R2:3f';
-
-export function strategyTargets(id: StrategyId, f0: number, base: FormantTarget[]): FormantTarget[] {
-  switch (id) {
-    case 'R1:f':  return [{ ...base[0], freq: f0      }, base[1], base[2], base[3]];
-    case 'R1:2f': return [{ ...base[0], freq: f0 * 2  }, base[1], base[2], base[3]];
-    case 'R2:2f': return [base[0], { ...base[1], freq: f0 * 2 }, base[2], base[3]];
-    case 'R2:3f': return [base[0], { ...base[1], freq: f0 * 3 }, base[2], base[3]];
-    default: return base;
-  }
-}
-
-// audio/AudioBridge.ts (inside class init)
-$effect(() => {
-  if (!voiceState.strategyLocked || voiceState.strategy === 'none') return;
-  const targets = strategyTargets(voiceState.strategy, voiceState.f0, defaultFormants);
-  // Only write fields that changed, to avoid ping-pong
-  targets.forEach((t, i) => { voiceState.formants[i].freq = t.freq; });
-});
-```
-
-### Pattern 6: Test seams — pure DSP + a mockable bridge
-
-**What:**
-- Make all DSP math pure (`lib/dsp/biquad.ts`, `lib/dsp/glottal.ts`) and import the same module from the worklet. Test it offline with `OfflineAudioContext` or by driving the pure functions with known inputs.
-- Hide `AudioContext` behind an `AudioBridge` interface so tests can swap a `NullBridge` that records commands instead of making sound.
-- For visualization snapshot tests, use `@testing-library/svelte` + `canvas-mock` or write the viz to SVG and snapshot the serialized SVG.
-
-**Trade-offs:**
-- ✅ Unit tests don't need a real audio device or even a browser.
-- ✅ CI-friendly.
-- ❌ Requires discipline: never `new AudioContext()` outside the bridge.
-
-## Data Flow
-
-### The canonical slider-change flow
+### Data Flow (Vocal Tract Viz)
 
 ```
-User drags F1 slider
-    │
-    ▼
-Slider.svelte onInput handler
-    │ writes: voiceState.formants[0].freq = 740
-    ▼
-voiceState ($state)
-    ├──► $effect in AudioBridge fires
-    │       └──► node.parameters.get('f1Freq').setTargetAtTime(740, now, 0.02)
-    │               └──► VoiceProcessor.process() reads new k-rate value next block (~2.7ms)
-    │                       └──► biquad coefficients recomputed, audio output changes
-    │
-    ├──► $derived(harmonics) — unchanged (f0 didn't change)
-    │
-    ├──► VowelChart.svelte rAF tick reads formants[0].freq — point moves next frame
-    │
-    └──► PianoHarmonics.svelte rAF tick reads formants — formant peak overlay moves
+voiceParams.f1Freq / f2Freq / f3Freq change (any source: slider, vowel chart drag, preset)
+    |
+    v ($derived)
+VocalTractView recomputes tongue/jaw/lip positions
+    |
+    v (Svelte reactivity)
+SVG paths update, user sees vocal tract deform in real time
 ```
 
-### The vocal-strategy auto-tune flow (the interesting one)
+No audio changes. No new state. Purely derived from existing `voiceParams`. This is the simplest of the three features architecturally.
 
-This is the scenario from the milestone context: "pulling the pitch knob causes formants to track a strategy while also updating the F1/F2 chart AND the harmonics-on-piano display."
+### Reference Sources for Geometry
 
-```
-User drags pitch knob
-    │
-    ▼
-PitchKnob.svelte onInput: voiceState.f0 = 330
-    │
-    ▼
-voiceState.f0 changes ── fans out to every subscriber at once ──┐
-    │                                                            │
-    ├──► $derived(harmonics) recomputes: [330, 660, 990, ...]   │
-    │         │                                                  │
-    │         └──► PianoHarmonics rAF redraws harmonic markers  │
-    │                                                            │
-    ├──► AudioBridge $effect for f0 fires                        │
-    │         └──► AudioParam 'f0' setTargetAtTime(330)          │
-    │                 └──► glottal pulse gen follows new pitch   │
-    │                                                            │
-    ├──► StrategyEngine $effect fires (reads f0, strategy)       │
-    │         │                                                  │
-    │         │ strategy is 'R1:2f' and locked                   │
-    │         │                                                  │
-    │         └──► voiceState.formants[0].freq = 660 ◄───────────┘
-    │                     │
-    │                     ├──► AudioBridge $effect fires again
-    │                     │       └──► AudioParam 'f1Freq' setTargetAtTime(660)
-    │                     │
-    │                     ├──► VowelChart rAF redraws: F1 point moves up
-    │                     │
-    │                     └──► PianoHarmonics rAF redraws: F1 peak now sits on 2nd harmonic
-    │
-    └──► (viz are already redrawing on rAF, so they just pick up the new values)
-```
+The "Interactive Sagittal Section" (SAMMY) at incl.pl/sammy provides a reference for the visualization style. The goal is NOT physical accuracy -- it is pedagogical clarity. A stylized, simplified cross-section that clearly shows "tongue moves forward for /i/, jaw drops for /a/" is better than an anatomically precise but visually noisy rendering.
 
-**Key property:** the strategy effect writes to the store, and the store is what the viz reads. There is no "tell the piano to redraw" — the piano is already polling the store every frame.
+## Component Boundary Map
 
-**Loop prevention:** the strategy effect reads `f0` and `strategy` but only writes `formants[i].freq`. Svelte 5's `$effect` will re-run when its read dependencies change, so writing to an unread field is safe.
-
-### State management summary
+### New vs Modified
 
 ```
-  ┌─────────────────────────────┐
-  │         voiceState          │◄─────── UI writes (sliders, drag, presets)
-  │  (Svelte 5 $state class)    │◄─────── Strategy effect writes back
-  └───────────┬─────────────────┘
-              │ subscribed via $effect / $derived
-   ┌──────────┼──────────┬────────────────┐
-   ▼          ▼          ▼                ▼
-AudioBridge  Viz (rAF)  Strategy      URL encoder
-   │         │          engine         (presets)
-   ▼
-AudioParams (smooth) + postMessage (discrete)
-   │
-   ▼
-VoiceProcessor (audio thread)
+src/lib/
+  audio/
+    worklet/
+      glottal-processor.ts  --> RENAME to voice-processor.ts (HEAVY MODIFY)
+    bridge.ts               --> HEAVY MODIFY (simplify graph)
+    state.svelte.ts         --> MODIFY (add glottalModel, rd, filterTopology)
+    dsp/
+      rosenberg.ts          --> UNCHANGED
+      lf.ts                 --> NEW (pure LF sample function for testing)
+      biquad.ts             --> NEW (pure biquad coefficient functions for testing)
+      formant-response.ts   --> MODIFY (add cascade envelope math)
+      formant-utils.ts      --> MODIFY (add coefficient computation)
+  components/
+    GlottalPulseVisual.svelte   --> MODIFY (render LF shape)
+    FormantCurves.svelte        --> MODIFY (cascade/parallel rendering)
+    PhonationMode.svelte        --> MODIFY (model selector, Rd slider)
+    VocalTractView.svelte       --> NEW
+  data/
+    vocal-tract-geometry.ts     --> NEW
+    phonation-presets.ts        --> MODIFY (add LF presets with Rd values)
+  types.ts                      --> MODIFY (add GlottalModel, FilterTopology types)
 ```
 
-### Key Data Flows (summary)
+### Unchanged Components
 
-1. **Parameter edit → sound + viz:** UI writes store → (a) AudioBridge effect ramps `AudioParam`s → DSP; (b) viz rAF reads store → repaint.
-2. **Preset load:** `Object.assign(voiceState, preset)` → all effects fire once → sound + viz update.
-3. **URL share:** on state change (debounced), `url.encode(voiceState)` → `history.replaceState`. On load, `url.decode(location)` → seed store before `AudioBridge` init.
-4. **Strategy lock + pitch change:** store → strategy effect → store → audio + viz (see diagram above).
-5. **Direct-manipulation drag:** pointer → pixel-to-hz inverse → store write → same flow as a slider edit.
+These components need zero changes for v0.2:
+- `VowelChart.svelte`, `VowelChartOverlay.svelte` -- reads F1/F2, unaffected
+- `PianoHarmonics.svelte`, `PianoKeyboard.svelte`, `HarmonicBars.svelte` -- reads f0/formants, unaffected
+- `R1StrategyChart.svelte`, `R2StrategyChart.svelte` -- reads f0/formants, unaffected
+- `StrategyPanel.svelte`, `StrategyOverlay*.svelte` -- strategy logic unchanged
+- `PitchSection.svelte`, `ExpressionControls.svelte` -- f0/vibrato/jitter unchanged
+- `TransportBar.svelte` -- play/stop unchanged
+- Strategy engine (`engine.ts`, `auto-strategy.ts`) -- operates on formant targets, topology-agnostic
+- All data files except `phonation-presets.ts`
 
-## Build Order (what has to exist before what can be tested end-to-end)
+## Recommended Build Order
 
-This is the dependency order that gives you a **minimum-viable closed loop** as early as possible — the loop being "move a control, hear a change."
+### Phase 1: LF Glottal Model
 
-### Phase A — Foundations (offline, no sound yet)
-1. **`state/voiceState.svelte.ts`** with all fields + defaults.
-2. **`lib/dsp/biquad.ts`** (RBJ cookbook bandpass coefficients). Unit-tested.
-3. **`lib/dsp/glottal.ts`** (Rosenberg or LF pulse). Unit-tested against `OfflineAudioContext` reference output.
-4. **`domain/strategy.ts`**, **`domain/vowels.ts`**, **`domain/harmonics.ts`**. All pure, all unit-tested.
+**Dependencies:** None. Self-contained in worklet + state.
+**Effort:** Medium.
 
-### Phase B — Audio closed loop (hear it)
-5. **`audio/worklets/voice-processor.ts`** — worklet registering with parameterDescriptors, importing `lib/dsp/*`. Just produces sound with hardcoded formants.
-6. **`audio/AudioBridge.ts`** — creates `AudioContext`, loads worklet, exposes start/stop.
-7. **One slider in App.svelte** wired to `voiceState.f0`, plus the `$effect` forwarding `f0` to the worklet. **At this point: move slider → hear pitch change. Closed loop achieved.**
-8. Extend the bridge `$effect` to cover all formants + vibrato + jitter.
+1. Write `lf.ts` with pure `lfDerivativeSample(phase, Rd)` + integration function
+2. Unit test against known LF waveform shapes for Rd = 0.5, 1.0, 2.0
+3. Add `glottalModel` and `rd` to `VoiceParams`, `snapshot`, and bridge postMessage
+4. Inline `lfSample()` in `voice-processor.ts` (was `glottal-processor.ts`)
+5. Add model selector to `PhonationMode.svelte`
+6. Update `GlottalPulseVisual.svelte` to render LF shape
+7. Update `phonation-presets.ts` with Rd values for each mode
+8. When LF is selected, bypass the spectral tilt filter (tilt is baked into LF shape via Rd)
 
-### Phase C — Visualization (see it)
-9. **Piano + harmonics viz** (simplest: f0 → 16 harmonic markers). Confirms the rAF pattern.
-10. **F1/F2 vowel chart** with drag. Second viz, confirms direct manipulation writes to store.
-11. **Formant range overlay** (static data).
+### Phase 2: Cascade Formant Filters
 
-### Phase D — Linking features
-12. **Strategy engine effect** (auto-tune mode). Depends on everything above — you need audio + both viz in place to see the three-way sync.
-13. **Overlay mode** for strategies (show targets without locking).
-14. **Preset system** (named snapshots + picker UI).
-15. **URL encode/decode**.
+**Dependencies:** None strictly, but easier after LF because the worklet is already being modified.
+**Effort:** High. This is the biggest change.
 
-### Phase E — Polish
-16. Pedagogy UI: inline explanations, guided presets.
-17. Pointer/touch refinements.
-18. Spectrum/oscilloscope viz via `AnalyserNode` (optional).
+1. Write `biquad.ts` with pure resonator coefficient computation + `processBiquad()`
+2. Unit test: compute coefficients for known (freq, bw, sr), verify frequency response
+3. Add `filterTopology` to `VoiceParams` and bridge postMessage
+4. Add inline biquad state and processing to `voice-processor.ts`
+5. Implement cascade loop: signal flows through F1 -> F2 -> F3 -> F4 -> F5
+6. Implement parallel loop (replacing native nodes): signal splits to F1..F5, sums
+7. Update `AudioBridge`: when topology is worklet-internal, skip `buildFormantChain()`, send formant params via postMessage, simplify graph to worklet -> master -> dest
+8. Update `formant-response.ts`: add `cascadeSpectralEnvelope()` (product of magnitudes)
+9. Update `FormantCurves.svelte` to switch between additive and multiplicative rendering
+10. Add topology selector to UI (expert mode only)
 
-### Why this order
+### Phase 3: Vocal Tract Visualization
 
-- Steps 1–7 get you to the **Core Value loop** (move thing → hear thing) in the fewest files touched.
-- Visualizations come after audio because a silent viz is still useful, but you can't verify a strategy engine or preset without hearing it.
-- The strategy engine is deliberately last among linking features: it's the most complex reactive chain and benefits from having everything else working so bugs are easy to localize.
-- Presets come after strategies because a preset can include a strategy, not vice versa.
+**Dependencies:** None. Can be built in parallel with Phase 1 or 2.
+**Effort:** Medium. Mostly geometry and SVG work.
+
+1. Define `TractShape` interface and baseline geometry in `vocal-tract-geometry.ts`
+2. Implement deformation functions mapping F1/F2/F3 to articulatory positions
+3. Build `VocalTractView.svelte` reading from `voiceParams`
+4. Add to `App.svelte` layout
+5. Test with vowel extremes (/i/, /a/, /u/) to verify deformations look pedagogically correct
+
+## Anti-Patterns to Avoid
+
+### Anti-Pattern 1: Pulling Audio Data Back to Main Thread for Viz
+
+**What people do:** Use `AnalyserNode.getFloatFrequencyData()` or worklet->main postMessage to feed visualization.
+**Why it's wrong:** Adds latency, scheduling complexity, and breaks the "store is truth" principle. The current architecture works because viz reads from the *same* store that drives audio.
+**Do this instead:** Continue reading from `voiceParams` for all visualization. The vocal tract viz reads F1/F2/F3 from the store, not from audio analysis.
+
+### Anti-Pattern 2: Recomputing Biquad Coefficients Every Sample
+
+**What people do:** Call the coefficient computation function inside the per-sample loop.
+**Why it's wrong:** Coefficient computation involves trig functions (sin, cos, exp). At 48kHz that is 48,000 trig calls per second per filter. With 5 filters, 240k trig calls/sec.
+**Do this instead:** Recompute coefficients only when parameters change (on postMessage receipt). For smooth transitions, interpolate coefficients linearly over 64-128 samples.
+
+### Anti-Pattern 3: Physical Vocal Tract Simulation
+
+**What people do:** Implement a full Kelly-Lochbaum waveguide or area-function model for the vocal tract view.
+**Why it's wrong:** Massively overscoped. The visualization is pedagogical, not a simulation. A physical model would need its own DSP engine, wouldn't match the formant-based synthesis, and would confuse users when the two disagree.
+**Do this instead:** Simple geometric interpolation between reference articulatory shapes based on formant frequencies. The visualization *illustrates* what the formants mean, not what a physical tract would do.
+
+### Anti-Pattern 4: Separate State for New Features
+
+**What people do:** Create a new store for LF params, another for cascade state, another for vocal tract geometry.
+**Why it's wrong:** Breaks the single-source-of-truth pattern that makes linked exploration work. Every new store is a sync bug waiting to happen.
+**Do this instead:** Add all new parameters to the existing `VoiceParams` class. `glottalModel`, `rd`, `filterTopology` -- all live next to `f0`, `openQuotient`, etc.
 
 ## Scaling Considerations
 
-This is a single-page static app with no users-per-se. "Scale" here means **complexity growth** and **real-time performance**, not concurrent users.
+| Concern | Current (v0.1) | After v0.2 |
+|---------|----------------|------------|
+| Worklet CPU | Rosenberg pulse only (~trivial) | LF pulse + 5 inline biquads = still <5% of one core at 48kHz |
+| postMessage frequency | ~60 Hz (every rAF from $effect) | Same. More params per message but message rate unchanged. |
+| SVG complexity | ~200 elements total | +50-100 elements for vocal tract. Still under 400. Fine for 60fps. |
+| Bundle size | Minimal | +~2KB for LF/biquad math. Vocal tract geometry +~5KB. Negligible. |
 
-| Scale | Architecture adjustments |
-|-------|--------------------------|
-| v1 (single voice, 4 formants, 1 AudioContext) | Default pattern above. No optimizations needed. |
-| v1.5 (chord mode, multiple simultaneous voices) | Multiple `VoiceProcessor` nodes fed from parallel state slices. Store becomes `voices: VoiceState[]`. |
-| v2 (shared formant banks, complex routing) | Consider an `AudioWorkletGlobalScope` message bus; still no backend needed. |
-| Research-grade accuracy | Swap `biquad-chain` for a WASM-compiled vocal tract model. The worklet boundary is unchanged — only `lib/dsp` swaps. |
-
-### First bottlenecks
-
-1. **GC pauses in the worklet:** if you allocate inside `process()` you get glitches. Pre-allocate all buffers in the constructor; never `new` anything inside `process()`.
-2. **Svelte re-render storms during drag:** if a single drag event writes multiple fields, batch them or use `flushSync`. In practice, Svelte 5's fine-grained reactivity handles this well, but watch for `$derived` chains that recompute unnecessarily.
-3. **Canvas fill rate:** the piano viz with 88 keys + harmonic markers at 60fps is trivial on desktop but can be smoother with `OffscreenCanvas` for the static background layer.
-
-## Anti-Patterns
-
-### Anti-Pattern 1: Putting DSP on the main thread with `ScriptProcessorNode`
-
-**What people do:** Use the deprecated `ScriptProcessorNode` because it feels simpler than writing a worklet module.
-**Why it's wrong:** It runs on the main thread, competes with UI for CPU, and produces audible glitches the moment you drag a slider. It's deprecated for a reason.
-**Do this instead:** `AudioWorkletProcessor` from day one. The build-tool pain (one `?url` import) is worth it.
-
-### Anti-Pattern 2: Storing audio state in the worklet and asking for it back for viz
-
-**What people do:** Treat the worklet as the source of truth and `postMessage` state snapshots to the main thread for viz to render.
-**Why it's wrong:** You pay a serialization tax, you get stale data (messages are queued), and you've built two-way sync between worklet and main thread for no reason. Your sliders already know what they wrote.
-**Do this instead:** Main thread store is authoritative. Worklet is a pure consumer of `AudioParam`s. Viz reads from the same store the UI writes to.
-
-### Anti-Pattern 3: One `$effect` per parameter
-
-**What people do:** Write a separate `$effect` for `f0`, each formant freq, each bw, each gain, etc.
-**Why it's wrong:** Dozens of effects = dozens of micro-tasks per edit. Worse, you forget one and something silently stops updating.
-**Do this instead:** One effect in `AudioBridge.ts` that walks all known parameters. If any of them changes, the effect re-runs and forwards everything (cheap, since `setTargetAtTime` is O(1)).
-
-### Anti-Pattern 4: Mixing overlay and auto-tune strategy state
-
-**What people do:** Use one `strategy` field that tries to mean both "what to display" and "what to auto-tune to."
-**Why it's wrong:** The user wants to overlay R1:f while actively dragging formants freely — two independent concepts.
-**Do this instead:** Two fields: `strategyOverlay: StrategyId` (always shown as a ghost on the chart) and `strategyLock: StrategyId | null` (only written-back when set). The effect only writes formants when `strategyLock` is non-null.
-
-### Anti-Pattern 5: Recomputing biquad coefficients every sample
-
-**What people do:** Inside `process()`, recompute RBJ cookbook coefficients from `freq/bw/gain` every sample even when k-rate params are constant for the whole block.
-**Why it's wrong:** Wastes CPU on trig functions; can push you over the block budget at 48k.
-**Do this instead:** Check if the current param values differ from cached values; only recompute coefficients on change. With k-rate automation on formants, this means at most once per 128-sample block.
-
-### Anti-Pattern 6: Jitter/vibrato modulation outside the worklet
-
-**What people do:** Implement vibrato on the main thread by wiggling `f0` via `setTargetAtTime` at 5.5 Hz.
-**Why it's wrong:** Main thread timing is jittery; you get a lumpy vibrato. Also couples UI thread to audio quality.
-**Do this instead:** Vibrato + jitter are implemented inside the worklet, parameterized by rate/depth AudioParams. The UI sets targets; the DSP does the modulation.
-
-### Anti-Pattern 7: Forgetting the user-gesture requirement for AudioContext
-
-**What people do:** `new AudioContext()` at app load.
-**Why it's wrong:** Chrome/Safari autoplay policy requires a user gesture; the context starts suspended and silent.
-**Do this instead:** Create the context inside a click handler ("Start" button). Keep the rest of the app functional before audio starts — viz can run without sound.
-
-## Integration Points
-
-### External Services
-
-| Service | Integration pattern | Notes |
-|---------|---------------------|-------|
-| None | This is a static app | No backend for v1 |
-
-### Internal Boundaries
-
-| Boundary | Communication | Notes |
-|----------|---------------|-------|
-| UI ↔ State Store | Direct import + `$state` read/write | No events; writing a field is the event |
-| State Store ↔ AudioBridge | `$effect` reads store → calls `AudioParam.setTargetAtTime` / `postMessage` | Unidirectional: store → audio. Audio never writes store. |
-| AudioBridge ↔ VoiceProcessor | `AudioParam` for numbers, `MessagePort` for events | Worklet file must be self-contained; cannot import Svelte |
-| State Store ↔ Visualizations | `$derived` + rAF read loop | Unidirectional: store → viz. Viz writes store only via direct-manipulation handlers (same as UI controls). |
-| Strategy Engine ↔ State Store | `$effect`: reads `(f0, strategy, strategyLock)`, writes `formants` | Watch for feedback loops; strict read/write separation |
-| Preset System ↔ State Store | `Object.assign(voiceState, preset)` | Batched update; all effects fire at end of microtask |
-
-### Testing Seams
-
-| Seam | How to test |
-|------|-------------|
-| Pure DSP (`lib/dsp/*`) | Vitest with known input arrays and expected outputs |
-| Worklet behavior | `OfflineAudioContext` rendering 1s of audio, FFT the output, assert formant peaks are within Hz tolerance |
-| Strategy engine | Vitest: pure function, call with every strategy × pitch, assert expected formants |
-| State store transitions | Vitest + `flushSync()`: set field, assert `$derived` updated |
-| AudioBridge | Mockable: replace `node.parameters` with a spy that records `setTargetAtTime` calls |
-| Viz snapshot | `@testing-library/svelte` + jsdom-canvas mock, or render to SVG and snapshot serialized output |
-| End-to-end linked updates | Playwright: click slider, wait a frame, assert canvas pixel color at expected F1/F2 coord changed |
+The worklet doing all DSP internally is actually more efficient than the current native-node approach because it avoids the overhead of connecting 5 BiquadFilterNodes + 5 GainNodes + 1 SumGain.
 
 ## Sources
 
-- [MDN — Background audio processing using AudioWorklet](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Using_AudioWorklet) — worklet parameter descriptors + MessagePort patterns (HIGH confidence)
-- [MDN — AudioParamDescriptor](https://developer.mozilla.org/en-US/docs/Web/API/AudioParamDescriptor) — a-rate vs k-rate semantics (HIGH confidence)
-- [MDN — AudioWorkletProcessor.parameterDescriptors](https://developer.mozilla.org/en-US/docs/Web/API/AudioWorkletProcessor/parameterDescriptors_static) — static descriptor declaration (HIGH confidence)
-- [Chrome for Developers — Audio Worklet is now available by default](https://developer.chrome.com/blog/audio-worklet) — production availability, GC-free discipline inside process() (HIGH confidence)
-- [Svelte Docs — What are runes?](https://svelte.dev/docs/svelte/what-are-runes) — `$state`, `$derived`, `$effect` semantics (HIGH confidence)
-- [DEV — Sharing Runes in Svelte 5 with the Rune Class](https://dev.to/jdgamble555/sharing-runes-in-svelte-5-the-rune-class-505e) — module-level class pattern for shared state (MEDIUM confidence)
-- [Svelte Blog — Introducing runes](https://svelte.dev/blog/runes) — reactivity model (HIGH confidence)
-- [Jake Lazaroff — Building a Live Coding Audio Playground](https://jakelazaroff.com/words/building-a-live-coding-audio-playground/) — real-world Svelte + Web Audio architecture (MEDIUM confidence)
-- Madde synthesizer (KTH) — reference voice model; design inspiration for glottal + formant chain (training data, MEDIUM confidence)
-- Robert Bristow-Johnson — Audio EQ Cookbook — biquad bandpass coefficients for the formant filters (training data, HIGH confidence)
+- Klatt, D.H. (1980). "Software for a cascade/parallel formant synthesizer." *JASA* 67(3). [Klatt 1980 PDF](https://www.fon.hum.uva.nl/david/ma_ssp/doc/Klatt-1980-JAS000971.pdf) -- CASCADE vs PARALLEL topology reference
+- Fant, G., Liljencrants, J., Lin, Q. (1985). "A four-parameter model of glottal flow." *STL-QPSR* 26(4). -- Original LF model
+- Fant, G. (1995). "The LF-model revisited. Transformations and frequency domain analysis." *STL-QPSR* 36(2-3). -- Rd meta-parameter
+- Gobl, C. (2017). "Reshaping the Transformed LF Model: Generating the Glottal Source from Rd." [ResearchGate](https://www.researchgate.net/publication/319185090) -- Rd implementation details
+- Audio EQ Cookbook (Robert Bristow-Johnson) -- Biquad coefficient formulas
+- `klatt-syn` (chdh, GitHub) -- Reference TS implementation of Klatt cascade/parallel
+- Interactive Sagittal Section (SAMMY) at [incl.pl/sammy](https://incl.pl/sammy/) -- Reference for vocal tract visualization style
 
 ---
-*Architecture research for: real-time voice synthesizer + linked visualization web app*
-*Researched: 2026-04-11*
+*Architecture research for: Formant Canvas v0.2 Voice Model Depth*
+*Researched: 2026-04-13*

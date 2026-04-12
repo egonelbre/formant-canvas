@@ -1,340 +1,158 @@
 # Pitfalls Research
 
-**Domain:** Voice synthesis + real-time Web Audio + linked pedagogical visualization (Svelte)
-**Researched:** 2026-04-11
-**Confidence:** HIGH for Web Audio / DSP pitfalls (verified with MDN, WebAudio WG issues, practitioner write-ups); MEDIUM-HIGH for voice-science accuracy (literature + authoritative pedagogy sources); MEDIUM for UX-specific direct-manipulation pitfalls.
+**Domain:** Adding LF glottal model, cascade formant filters, and vocal tract visualization to an existing Web Audio + Svelte formant synthesizer
+**Researched:** 2026-04-13
+**Confidence:** HIGH for DSP/filter pitfalls (verified with Web Audio spec, DSP literature, Klatt 1980 paper); MEDIUM for LF model numerics (academic literature, reference implementations); MEDIUM for vocal tract visualization (inverse problem literature, Pink Trombone reference)
 
-This document is opinionated. It is intentional about *which* pitfalls Formant Canvas must avoid given its goals (pedagogical accuracy, linked audio+visual exploration, single-developer scope) — not a generic inventory of "bad things that can happen in a web app."
+This document covers pitfalls specific to the v0.2 upgrade -- adding LF glottal model, cascade formant topology, and vocal tract visualization to the existing Formant Canvas system. For general Web Audio and Svelte pitfalls, see the v0.1 pitfalls (git history).
 
 ---
 
 ## Critical Pitfalls
 
-### Pitfall 1: AudioContext never starts (or silently stays suspended)
+### Pitfall 1: LF model implicit equation solver diverges or stalls the AudioWorklet
 
 **What goes wrong:**
-User loads the page, clicks a vowel preset, sees the visualization update — but hears nothing. Or: audio works in development, fails silently in production, fails differently on iOS Safari. On iOS, the ringer switch being set to silent / vibrate kills Web Audio output entirely with no error.
+The LF (Liljencrants-Fant) glottal model has two implicit equations that must be solved numerically: (1) the parameter epsilon (related to the return phase time constant Ta) requires solving a transcendental equation, and (2) the amplitude scaling factor E0 depends on epsilon. If you implement Newton-Raphson or bisection *inside* the AudioWorklet's `process()` method, two things break: the solver may not converge for certain parameter combinations (especially extreme Ra values), causing NaN propagation through the entire audio chain, and even when it converges, the iteration count is unpredictable -- a single slow convergence can blow through the 128-sample quantum budget and cause audio glitches.
 
 **Why it happens:**
-All modern browsers require a user gesture (click/keydown/pointerdown) to start or resume an `AudioContext`. If the context is constructed at page load — which is natural in a Svelte component's `onMount` — it is born in the `suspended` state and stays there. Many tutorials show `new AudioContext()` at module top-level; this is a trap.
+The existing Rosenberg model is a closed-form formula -- `rosenbergSample()` is 6 lines of math with no iteration. Developers naturally try to implement LF the same way: compute parameters on-the-fly per cycle. But the LF model's return phase involves `exp(-epsilon * (T0 - Te))` where epsilon is defined implicitly. This is fundamentally different from Rosenberg.
 
 **How to avoid:**
-- Create the `AudioContext` **lazily**, on the first real user gesture (clicking "Start", pressing a key, tapping a preset).
-- Always check `ctx.state === 'suspended'` on every subsequent user interaction and call `ctx.resume()` — Safari will re-suspend on tab-switch, interruption, route changes.
-- Gate the UI behind a visible "Start audio" affordance for the first interaction. Do not hide this; users who see muted visuals without explanation think the app is broken.
-- On iOS specifically: document the ringer-switch gotcha in the UI (a small "No sound? Check silent switch" hint).
-- Show an audible-output state indicator (green "playing" / orange "suspended") in the UI so teachers demoing to a class can diagnose silence in 1 second instead of 30.
+- Pre-compute LF waveform tables on the main thread, not in the worklet. Build a lookup table indexed by the LF shape parameters (Rd or Ra/Rk/Rg). Send the table to the worklet via `postMessage` (transferable ArrayBuffer).
+- Use the Rd parameterization (Fant 1995) instead of raw Ra/Rk/Rg. Rd is a single "voice quality" parameter from ~0.3 (pressed) to ~2.7 (breathy) that deterministically maps to the other three. This collapses the 3D parameter space to 1D, making lookup tables practical.
+- Pre-compute a grid of ~50-100 Rd values at startup (takes <50ms). Interpolate between two nearest table entries at runtime -- linear interpolation between adjacent waveform shapes is perceptually smooth.
+- Clamp Rd to validated range [0.3, 2.7] in the UI. Outside this range the implicit equations have no real solution.
+- Add NaN guards after every LF sample computation: `if (!isFinite(sample)) sample = 0;`. NaN in an AudioWorklet output propagates to all downstream nodes and produces silence or distortion with no error message.
 
 **Warning signs:**
-- QA reports "no sound on iPad" but it works on desktop.
-- Works on first click, then breaks after switching tabs and coming back.
-- `ctx.currentTime` is stuck at `0`.
-- Console is clean but `AnalyserNode` returns all zeros.
+- Occasional clicks or dropouts when sweeping LF parameters quickly
+- `NaN` appearing in AnalyserNode data
+- Audio worklet `process()` taking >2.9ms per 128-sample block (at 44.1kHz, the budget is ~2.9ms)
+- Silence after changing to extreme parameter values
 
-**Phase to address:** Audio engine bootstrap / Phase 1 (foundational audio plumbing). The "Start audio" UX must exist before the first synthesized vowel ships.
+**Phase to address:** LF Glottal Model phase (implement table pre-computation before any worklet integration)
 
 ---
 
-### Pitfall 2: Zipper noise when dragging formants
+### Pitfall 2: Cascade formant chain has uncontrolled gain accumulation causing clipping or silence
 
 **What goes wrong:**
-User drags a formant on the F1/F2 chart. The sound crackles, zippers, or makes audible stair-step noises as the filter parameters jump. On rapid drags (the core interaction!) it sounds like a broken robot instead of a smooth vowel transition. This alone can sink the "direct manipulation is the pedagogy" value proposition.
+Switching from parallel to cascade (series) filter topology fundamentally changes the gain structure. In the current parallel topology, each BiquadFilterNode's output is independently scaled by a GainNode and summed -- the gains are additive and easily controlled. In cascade topology, the filters multiply: a signal passing through F1, F2, F3, F4, F5 in series accumulates gain at frequencies near formant peaks and attenuation everywhere else. The peak-to-valley ratio can exceed 60-80dB. At formant frequencies the output clips; between formants it's inaudible. Worse: when formant frequencies are close together (e.g., F1 and F2 in /a/), the cascaded peaks compound, producing massive gain spikes.
 
 **Why it happens:**
-Two independent causes that are often conflated:
-1. **`BiquadFilterNode` parameter jumps without automation.** Setting `.frequency.value = X` directly causes an instantaneous coefficient change. Even at 60 Hz update rate, 60 little discontinuities per second is enough to produce audible artifacts, especially on narrow-Q formant filters where the filter state has high energy.
-2. **Biquad filter state resets when coefficients change abruptly**, which causes filter ringing / impulse-like glitches.
+In the Klatt cascade model, the resonators don't need individual amplitude controls because the *relative* amplitudes come out correct from the cascade topology itself -- but the *absolute* level is wildly different from the parallel version. Developers switching from parallel to cascade often keep the same gain structure and wonder why everything clips.
 
 **How to avoid:**
-- For parameters driven from UI drag events, use `setTargetAtTime(value, ctx.currentTime, timeConstant)` with a `timeConstant` around 5–20 ms. This gives exponential smoothing in the audio thread at sample rate — far smoother than any JS-side smoothing.
-- Do **not** use `setValueAtTime` for drag updates: it is a hard step.
-- `linearRampToValueAtTime` is OK but requires scheduling ahead; `setTargetAtTime` is simpler for drag.
-- If you write your own biquad in an AudioWorklet (which you likely will for formant synthesis — see Pitfall 4), smooth coefficients at a-rate inside `process()`, not at k-rate between blocks.
-- Test dragging with a sustained vowel at low F1 and high Q. If you can hear clicks, smoothing is insufficient.
+- Add a normalization gain stage after the cascade chain. Compute the expected peak gain analytically (product of individual resonator peak gains) or measure it empirically and apply the inverse.
+- Use constant-peak-gain resonators: place zeros at DC and Nyquist so that the peak gain of each second-order section stays constant as frequency and Q change. The formula is in Julius O. Smith's DSP textbook. This prevents gain from changing unpredictably as formants move.
+- Keep the parallel topology available as a fallback. The Klatt synthesizer itself uses cascade for vowels and parallel for fricatives/bursts. You may need both, switchable per phonation context.
+- Add a limiter or soft-clipper after the cascade chain as a safety net -- even a simple `Math.tanh(sample * 0.5)` prevents speaker damage during development.
+- Update `formant-response.ts`: the current `spectralEnvelope()` function sums magnitudes (parallel model). For cascade, you need to multiply magnitudes. The visualization will be wrong if this isn't updated.
 
 **Warning signs:**
-- Crackle on every drag event.
-- Smooth on slow drags, crunchy on fast drags (you're sample-and-hold, not smoothing).
-- Audible discontinuity when releasing a drag (you hit a hard `setValueAtTime`).
+- Harsh distortion when formants are close together
+- Output level changes dramatically when moving a single formant
+- Visualization (FormantCurves) doesn't match what you hear
+- Master gain slider needs to be set to 0.01 to avoid clipping
 
-**Phase to address:** Audio engine / formant filter phase (before shipping direct-manipulation UI). This is non-negotiable for the core value prop.
+**Phase to address:** Cascade Filter phase (implement gain normalization from the start, not as an afterthought)
 
 ---
 
-### Pitfall 3: Aliased glottal pulse making the voice buzz or sound digital
+### Pitfall 3: Vocal tract visualization is physically impossible for the current formant values
 
 **What goes wrong:**
-The synthesized voice sounds buzzy, harsh, or has a metallic "fax machine" quality — especially on high pitches. Users who know what a real voice sounds like immediately reject it. Worse, the F1/F2 visualization looks correct, so the mismatch between "looks right / sounds wrong" destroys user trust.
+The formant-to-vocal-tract-shape mapping is an inverse problem -- multiple vocal tract shapes can produce the same formant frequencies, and some formant combinations correspond to *no* physically realizable vocal tract. If you naively interpolate between known vowel shapes based on F1/F2, you get impossible geometries: the tongue passes through the palate, the cross-section goes negative, or the tract has discontinuities that look like a glitch rather than anatomy. Users (especially voice teachers and researchers) will immediately lose trust.
 
 **Why it happens:**
-Glottal-pulse models (Rosenberg, Liljencrants-Fant / LF) are defined in continuous time. If you naively sample them at the audio sample rate — computing the pulse shape at integer sample positions and wrapping at the period — you get aliasing whenever harmonics of f0 exceed Nyquist. At f0 = 500 Hz (soprano territory), the 50th harmonic is 25 kHz, and every harmonic above 22.05 kHz aliases back into the audible band as inharmonic ghosts.
-
-A secondary failure: **DC offset**. LF and Rosenberg pulses do not necessarily have zero mean. Running a biquad chain on a DC-offset signal uses filter headroom on nothing, and can make clipping appear at lower amplitudes than expected. Clicking when source turns on/off (a hard transition from 0 → non-zero DC level) is audible.
+The forward problem (tract shape to formants) is well-defined. The inverse problem (formants to tract shape) is ill-posed: it's underdetermined (infinite solutions) and the solution space has holes (impossible regions). Developers coming from the audio side expect a clean mapping function and are surprised when the math doesn't cooperate.
 
 **How to avoid:**
-- **Use the derivative formulation** (glottal flow derivative, dGF/dt) not the flow itself. The derivative has zero mean by construction over one period (a closed loop integral of a derivative is 0), which removes DC. This is also what LF is natively expressed in.
-- **Anti-alias by band-limiting.** Options in rough order of effort:
-  - *Easy (acceptable for MVP):* Oversample the pulse generator 2–4x and run a decimating low-pass. Cheap, works well for f0 below ~400 Hz.
-  - *Better:* Pre-compute a handful of spectral tables at different f0 and crossfade (polyBLEP / minBLEP / BLIT-style). Harder, sounds cleaner up to whistle register.
-  - *Research-grade (overkill here):* Frequency-domain LF model (Gobl 2021) or the Kawahara anti-aliasing filter approach.
-- Add a high-pass at 20–40 Hz downstream of everything to catch residual DC — cheap insurance.
-- Test at f0 = 800 Hz. If it sounds OK there, it'll sound OK at 200 Hz. If it's broken, you'll hear it instantly.
+- Do NOT try to solve the general inverse problem. Use a parameterized articulatory model with a small number of degrees of freedom (tongue body position, tongue tip, jaw, lip rounding -- 4-6 parameters). Maeda's model is the standard reference with 7 parameters.
+- Map formant values to articulatory parameters via a pre-computed lookup table derived from published MRI/CT data, not by inverting the acoustic equations at runtime.
+- For F1/F2 combinations that don't map to any valid shape, interpolate to the nearest valid configuration and grey out or de-emphasize the visualization to signal uncertainty. Do not show a confidently-drawn impossible shape.
+- Keep the visualization explicitly simplified and pedagogical: a schematic midsagittal cross-section with smooth curves, not a photorealistic anatomy. This sets correct expectations and is easier to deform smoothly.
+- Use SVG path interpolation (cubic Bezier curves) with control points derived from the articulatory parameters. SVG is already the project's medium for similar complexity visualizations. Constrain control points to prevent self-intersection.
 
 **Warning signs:**
-- Voice sounds OK at C3 but metallic at C5.
-- You can hear a high-pitched whistle that doesn't move with f0 (alias mirror).
-- Waveform in analyser has non-zero mean line.
-- Click at note-on / note-off transitions.
+- Tongue outline crosses the palate outline
+- Shape doesn't change perceptibly when F1/F2 change by 100Hz+
+- Shape changes are discontinuous (jumps between two configurations)
+- Voice researchers point out the shape doesn't match what they see on ultrasound/MRI
 
-**Phase to address:** Audio engine — the glottal source is the first DSP you write, and aliasing problems compound everything downstream. Do this right once, save yourself rewrites.
+**Phase to address:** Vocal Tract Visualization phase (design the articulatory model constraints before drawing anything)
 
 ---
 
-### Pitfall 4: Using `BiquadFilterNode` for formants (and regretting it)
+### Pitfall 4: Switching between parallel and cascade breaks the reactive parameter bridge
 
 **What goes wrong:**
-You wire F1–F4 as four `BiquadFilterNode`s in cascade with `type='bandpass'`. It works. Then you start tuning and discover:
-- Bandpass biquads from `BiquadFilterNode` parameterize by Q, not by bandwidth in Hz — but published formant data is in **bandwidth (Hz)**. You write a conversion. It's wrong at low frequencies.
-- Low-Q formants (F1 for open vowels like /ɑ/ has BW ~90 Hz at F1=700 Hz → Q ≈ 7.8) are numerically OK, but narrow formants at low frequency (F1 for /i/, F1=300 Hz, BW=45 Hz → Q ≈ 6.7) can behave poorly across browsers.
-- You cannot set raw filter coefficients on `BiquadFilterNode` — you are stuck with the formulas the browser gives you, and different browsers have had historical discrepancies.
-- Cascade vs parallel: biquad bandpass in cascade doesn't give you the right vowel spectrum because you lose the "skirt" of each formant. Klatt-style cascade uses **resonator** topology, not isolated bandpasses.
+The existing `AudioBridge.buildFormantChain()` creates 5 parallel BiquadFilterNodes with individual GainNodes, all wired from the worklet. `syncParams()` updates all 5 filters' frequency/Q/gain via `setTargetAtTime`. Adding cascade means a completely different graph topology (series chain instead of fan-out). If you try to support both topologies by rebuilding the graph at runtime (disconnecting parallel, reconnecting as cascade), you get: (a) audible pops/clicks from the graph reconnection, (b) orphaned nodes that aren't garbage collected, (c) a race condition where `syncParams()` runs while the graph is half-rebuilt.
 
 **Why it happens:**
-`BiquadFilterNode` looks like it solves the problem because it has a filter that says "bandpass." But formant synthesis is not just "a bandpass filter"; it's a specific resonator topology where the filter represents the resonant mode of a vocal-tract cavity. The literature and Madde/Klatt use **2-pole resonators** (no zeros) with gain-compensation so the overall vocal-tract transfer function has the right shape — a different beast.
+The current code assumes a single, static topology. There's no abstraction layer between "voice parameters changed" and "update these specific Web Audio nodes." Adding a second topology means the bridge needs to know which topology is active and route updates differently.
 
 **How to avoid:**
-- Write a custom **Klatt-style cascade resonator** chain in an `AudioWorkletProcessor`. Each stage is a 2-pole all-pole filter (y[n] = x[n] - a1*y[n-1] - a2*y[n-2]) parameterized directly by center frequency F and -3dB bandwidth B via the standard mapping:
-  - `r = exp(-π * B / sr)`
-  - `a1 = -2 * r * cos(2π * F / sr)`
-  - `a2 = r²`
-- Smooth `a1`, `a2` across blocks (or per-sample) to avoid zipper noise (see Pitfall 2).
-- Offer an optional parallel topology for users who want to solo a single formant (pedagogically useful: "listen to just F2"), but the default should be cascade.
-- Document the BW→Q conversion if you ever expose Q (don't — expose bandwidth in Hz, which is what the literature speaks).
-- Keep `BiquadFilterNode` as a fallback / comparison mode only.
+- Build both topologies at init time. Keep both wired up but mute the inactive one via a gain crossfade (e.g., 50ms `setTargetAtTime` ramp to 0 on parallel sum, ramp to 1 on cascade output). This avoids graph reconnection entirely.
+- Alternatively, implement cascade filters *inside the AudioWorklet* as custom biquad math rather than using native BiquadFilterNodes. This keeps the graph topology unchanged (worklet -> single output) and moves the parallel/cascade choice into worklet code. Downside: you lose native BiquadFilterNode's optimized implementation and `setTargetAtTime` automation. Upside: topology is invisible to the bridge.
+- If you must rebuild the graph, do it during a silent period: ramp master gain to 0, wait for the ramp to complete (use `setTimeout` matching the time constant), rebuild, then ramp back up. Never disconnect nodes while audio is playing.
+- Extract the topology concern into a separate class (e.g., `FormantTopology`) that `AudioBridge` delegates to. `syncParams()` should call `topology.update(formantData)` without knowing the internal wiring.
 
 **Warning signs:**
-- You find yourself writing "BiquadFilterNode Q = F/BW" and the result sounds wrong.
-- Different browsers produce audibly different vowels from the same parameters.
-- You can't find a Q for F1=300 Hz, BW=45 Hz that sounds right.
-- `AnalyserNode` FFT of the output shows formant peaks at the wrong locations or with wildly wrong amplitudes.
+- Clicks or pops when switching between parallel and cascade mode
+- Audio continues from the old topology after switching
+- Memory leaks (Web Audio nodes are not garbage collected if any reference exists)
+- `syncParams()` throws because it references nodes that have been disconnected
 
-**Phase to address:** Phase that introduces the formant filter chain — make the Klatt-style AudioWorklet the baseline from day one. The rewrite cost later is painful.
+**Phase to address:** Cascade Filter phase (design the topology abstraction before implementing the cascade chain)
 
 ---
 
-### Pitfall 5: Hard-coded male formant table passed off as "the vowel"
+### Pitfall 5: LF model aliasing at soprano f0 values produces audible artifacts
 
 **What goes wrong:**
-You grab one of the classic formant tables (Peterson-Barney 1952 "average male" column) and use it as the default for the /i/, /a/, /u/ presets. A voice teacher opens the app and immediately says "those aren't my student's vowels." A soprano opens the app, hits /i/ preset, hears a dark male /i/, and closes the tab.
+The LF glottal pulse has a sharp discontinuity at the "return phase" (the abrupt closure of the glottis, parameter Te). In the time domain this is a near-vertical drop. When sampled naively at 44.1kHz, harmonics above Nyquist fold back as aliasing. This is barely noticeable at bass f0 (100Hz, ~441 samples per period) but becomes severe at soprano f0 (800Hz+, ~55 samples per period). The existing Rosenberg model has the same issue but its smoother cosine closure masks it better. LF's steeper return phase makes aliasing much worse.
 
 **Why it happens:**
-There is no such thing as "the formants of /a/." There are men's, women's, children's, regional, and individual ranges. Peterson-Barney and Hillenbrand differ by meaningful amounts — Hillenbrand /ɑ/ F2 for females ≈ 1333 Hz vs P-B ≈ 1220 Hz. For sopranos on high notes, **F1 must be actively retuned upward** to track 2f0 or f0 — that's the whole subject of the "vocal strategies" feature. A static table is already wrong before the user touches anything.
+The Rosenberg pulse closes with a smooth cosine -- its spectral energy falls off relatively fast. The LF pulse's return phase is exponential with a fast time constant, producing much more high-frequency energy. At high f0, fewer samples represent the return phase, and the aliased energy is concentrated in the audible range.
 
 **How to avoid:**
-- Ship at least **three voice-type baselines** as selectable presets: adult male, adult female, child. Label them honestly ("Hillenbrand adult male, neutral pitch").
-- Cite the **source** next to every preset (dataset name, reference, pitch assumption). Teachers will look. Researchers will definitely look.
-- Store formants as **ranges** (min/max/typical) per voice type per vowel, not as single values — feeds the "ranges formants can occupy" visualization directly.
-- Make the voice-type selector prominent. A sparkling /i/ that sounds wrong because it's using a male preset on a female voice is a first-30-seconds failure.
-- Distinguish "vowel target at rest / comfortable pitch" from "vowel under a vocal strategy at f0 = X." When the R1:f0 strategy is active above the passaggio, the F1 displayed is *not* the table value — the UI must make this legible.
-- Units: stay in **Hz** everywhere for frequencies and bandwidths. Do not introduce Bark / mel / ERB scales silently — if you use them for axis display (which is pedagogically great, especially for the F1/F2 chart), label the axis clearly.
+- Use band-limited pulse generation. The frequency-domain approach (Gobl 2021, INTERSPEECH) derives a closed-form spectrum for the LF model using Laplace transforms, avoiding time-domain aliasing entirely. Pre-compute the band-limited waveform per Rd value.
+- Alternatively, oversample the glottal pulse generation by 4x within the worklet, then low-pass filter and decimate. This is simpler to implement but costs 4x compute for the pulse generator (not the formant filters). At 128 samples per quantum, you'd generate 512 oversampled samples -- still within budget for a single worklet.
+- A pragmatic middle ground: for the pre-computed lookup tables (see Pitfall 1), generate each table entry at 4x oversampling and store the band-limited version. Zero additional runtime cost.
+- Test with soprano presets (f0 = 800-1200Hz) from the beginning, not just the male default at 120Hz.
 
 **Warning signs:**
-- User feedback: "my students don't sound like this."
-- F1 for /i/ ≥ 400 Hz in your male preset (P-B/H give ~270–340).
-- The same preset is loaded regardless of voice type.
-- No source cited anywhere in the UI.
-- Axis labels say "Bark" without a tooltip explaining what that is.
+- Buzzy, metallic quality at high pitches that the Rosenberg model doesn't have
+- Spectral analysis shows energy at frequencies that don't correspond to harmonics
+- Sound quality degrades as f0 increases (opposite of what voices actually do)
 
-**Phase to address:** Phase where presets and the F1/F2 chart land. Source citation and voice-type selection should be in the **first** pedagogical-UX phase, not retrofitted later.
+**Phase to address:** LF Glottal Model phase (band-limiting must be part of the table pre-computation, not bolted on later)
 
 ---
 
-### Pitfall 6: Vocal strategies that produce unsingable nonsense in auto-tune mode
+### Pitfall 6: Cascade filter parameter updates cause transient resonance blowup
 
 **What goes wrong:**
-User enables R1:f0 (soprano strategy) and sweeps f0 from C3 to C6. At C3 (f0 ≈ 131 Hz), the strategy says "F1 = 131 Hz" — physically impossible; the vocal tract cannot resonate that low. The app dutifully sets F1 to 131 Hz, the filter output is pathological, it clips or silences or makes a sub-bass rumble. The learner concludes R1:f0 is "broken." In reality, the strategy is only meaningful *above the passaggio*, when f0 is near F1's natural value.
+When a formant frequency or bandwidth changes in a cascade chain, the transient response of the chain can produce a brief but loud resonance spike. In the parallel topology, each filter's transient is independent and scaled by its own gain. In cascade, a transient in F1 is amplified by F2, F3, F4, and F5 in series -- the spike compounds through the chain. Fast parameter sweeps (dragging a formant on the vowel chart) produce machine-gun-like pops.
 
 **Why it happens:**
-R1:f0, R1:2f0, R2:2f0, etc. are strategies real singers use **in specific pitch regions** where the mapping makes physiological sense. Blindly applying them across all pitches ignores the physics and the pedagogy both. The temptation is to make auto-tune a pure mathematical function `F1 = f0` — elegant, wrong, anti-pedagogical.
+`BiquadFilterNode` parameters automated via `setTargetAtTime` change smoothly, but the *filter state* (internal delay line memory) can ring when the filter's center frequency passes through frequencies where the previous state had energy. In parallel, this ringing is attenuated by the per-formant gain. In cascade, each stage's ringing feeds the next stage at full level.
 
 **How to avoid:**
-- Each strategy declares an **applicable range** (e.g., R1:f0 is the soprano upper-range strategy, ~E5 and above for most sopranos). Outside the range, either:
-  - **Blend smoothly toward the neutral vowel target** as f0 crosses out of the strategy range (best for auto-tune mode), or
-  - **Visually signal "out of range"** and leave the formants at the baseline while showing an overlay saying "this strategy applies above E5" (best for overlay mode).
-- Clamp F1 to a physiologically plausible floor (~200 Hz) and similarly for F2, F3, F4. This is a safety net, not the primary fix.
-- Show both the **baseline vowel** and the **strategy-tuned** position on the F1/F2 chart simultaneously — the pedagogical point of vocal strategies is the *difference*, which only exists when both are visible.
-- In overlay mode, *never* silently change the sound; only draw the target. Overlay mode is for teaching "here's where you would tune if you followed this strategy" — auto-applying would defeat the point.
-- Clearly distinguish the two modes in UI with different iconography and copy — "locked" vs "ghost."
+- Use longer time constants for formant frequency changes in cascade mode. The current 60ms (`formantTC = 0.06`) works for parallel but may need 100-150ms for cascade to avoid transient spikes.
+- Change formant parameters in sequence, not simultaneously. Move F1 first, let it settle (~2x time constant = 200ms), then F2, etc. This is impractical for real-time dragging, so instead:
+- Add inter-stage gain normalization: between each cascade stage, insert a GainNode that compensates for the expected gain at the next stage's center frequency. This limits how much one stage's transient can compound through the chain.
+- As a safety net, add a dynamics compressor or simple limiter after the cascade output. `DynamicsCompressorNode` with a fast attack (0.003s) and moderate ratio (8:1) will catch spikes without audibly coloring the sustained sound.
+- If implementing cascade as custom biquad math inside the worklet (see Pitfall 4), you can reset the filter state (zero the delay line) when parameters change by more than a threshold. This prevents ringing but introduces a brief silence -- acceptable for preset switches, not for continuous dragging.
 
 **Warning signs:**
-- A singer loads R1:f0 and the app sounds unplayable at normal speaking pitch.
-- F1 < 200 Hz or > 1200 Hz in any generated preset.
-- No visible "this strategy doesn't apply here" state.
-- Overlay mode and auto-tune mode look identical.
+- Loud pops or clicks when dragging formants quickly
+- Clipping indicator lights up during parameter transitions but not during steady state
+- Users report "the cascade mode sounds broken when I move things"
 
-**Phase to address:** Vocal-strategies phase. Write the applicable-range metadata first, then the tuner. Test with a sweep across the full f0 range as an acceptance criterion.
-
----
-
-### Pitfall 7: Audio/visual drift — visuals and sound don't actually match
-
-**What goes wrong:**
-The user drags the F1 marker. The visual moves at 60 Hz. The audio parameter is scheduled for "now" but due to `setTargetAtTime` smoothing, the audio reaches the target 20 ms later. Or: the audio parameter was set synchronously to a value the visuals haven't yet picked up (the visuals lag the audio). Either way, what the user *sees* and what they *hear* stop being the same parameter. For a tool whose core value is the linkage, this is fatal — the linked exploration becomes uncoupled exploration.
-
-**Why it happens:**
-Web Audio has a dedicated, drift-free audio clock (`ctx.currentTime`) and its own thread. Visuals run via `requestAnimationFrame`, pegged to display refresh (~16.67 ms at 60 Hz). rAF is not tied to the audio clock. Moreover, parameter smoothing (necessary for Pitfall 2) introduces intentional lag between "value set" and "value audibly reached." If the UI reads back `.value` synchronously, it gets the *target*, not the *current* smoothed value.
-
-Additionally, on heavy frames (e.g., F1/F2 chart redrawing + piano redrawing + harmonic-ladder redrawing), rAF can drop to 30 Hz while audio keeps running — drift widens.
-
-**How to avoid:**
-- **Single source of truth:** The UI state (Svelte `$state`) is the authoritative parameter value. Audio and visuals both consume from it. Audio applies `setTargetAtTime`, visuals render the same target. Accept the ~10 ms smoothing delay — it's below perceptual threshold for tracked parameter changes.
-- **Unified smoothing time constant** across domains: if you smooth audio by 10 ms, smooth the visual indicator by the same 10 ms (or not at all, but pick one). Mismatched smoothing is the drift.
-- Never read back from `AudioParam.value` for display — always display what the UI state says it is.
-- Budget your redraw. Profile with Chrome DevTools Performance tab holding a drag. If a drag-frame exceeds 8 ms JS, you will drop frames on older laptops.
-- Prefer `Canvas2D` or `WebGL` for the high-frequency parts (F1/F2 chart, harmonic ladder) — DOM updates at 60 Hz with many nodes will stutter.
-- Do not recompute formant filter coefficients on the main thread and postMessage them every frame. The AudioWorklet receives parameter targets, it smooths internally. `postMessage` at 60 Hz is fine for small payloads; at sample rate it is catastrophic (see Pitfall 8).
-
-**Warning signs:**
-- Dragging is smooth visually but the sound "chases" the cursor.
-- The fundamental on the piano keyboard appears to change before the pitch does (or vice versa).
-- Frame profiler shows >16 ms frames during drag.
-- Sound behavior depends on framerate.
-
-**Phase to address:** Linked-updates phase — this is the Core Value. Write a performance acceptance test: "drag F2 across full range in 500 ms, no frame drops, audio matches visual within 15 ms."
-
----
-
-### Pitfall 8: AudioWorklet `postMessage` used as a per-sample transport
-
-**What goes wrong:**
-You need to send formant targets, vibrato parameters, and jitter state into the worklet. You use `port.postMessage({ f1, f2, f3, f4, vibRate, vibDepth, jitter })` on every UI event. Works fine in development. Under a sustained drag with 8+ parameters, the main thread stalls, GC kicks in, the audio thread starts buffer-underrunning, the browser emits glitches. Or you do the opposite: try to push analysis results out of the worklet via `postMessage` at sample rate and the main thread melts.
-
-**Why it happens:**
-`postMessage` between main thread and `AudioWorkletGlobalScope` goes through a structured-clone queue. It allocates. The audio thread is a real-time thread that must never allocate, never block, and never GC-pause. Mixing these two realities is how you get clicks, pops, and dropouts.
-
-**How to avoid:**
-- `postMessage` is fine for **event-rate** data: preset load, topology switch, strategy-mode toggle. Not sample-rate, not even frame-rate-for-many-params.
-- For continuous parameter streams, prefer **`AudioWorkletNode` `parameterData` + `AudioParam`s** with `automationRate: 'a-rate'`. These are designed for exactly this — smoothed, lock-free, allocated once.
-- For larger shared state (e.g., scope of harmonic amplitudes read back by the UI), use `SharedArrayBuffer` + `Atomics` as a lock-free ring buffer. Requires `COOP/COEP` headers on your static host (cross-origin isolation). Plan for this early — adding COOP/COEP later breaks third-party script inclusion.
-- Inside `process()`, never `new` anything, never create closures, never use `.map`/`.filter`/`.forEach` (they allocate). Pre-allocate buffers in the constructor. Loop with `for` and indexed writes.
-- Benchmark with Chrome's Web Audio inspector: the worklet should use <20% of the audio-quantum budget. If it's bursting, allocation is almost always the cause.
-
-**Warning signs:**
-- Audio glitches during UI interaction but not during idle.
-- Main thread memory sawtooth in DevTools (GC pressure).
-- Chrome DevTools "long tasks" warning firing during drags.
-- Worklet "processor underrun" messages in console.
-
-**Phase to address:** Audio engine plumbing phase. Decide the message-passing architecture *before* writing the first non-trivial worklet.
-
----
-
-### Pitfall 9: Safari / iOS compatibility discovered at the end
-
-**What goes wrong:**
-You build the whole thing on Chromium. Two weeks before launch you open it in Safari and: `AudioWorkletNode` has different timing, `SharedArrayBuffer` isn't enabled because you lack COOP/COEP, a preset that worked in Chrome outputs silence in Safari, the iOS version won't start audio at all, the performance on older iPads is unusable, Pointer Events fire differently.
-
-**Why it happens:**
-Safari's Web Audio implementation lags Chromium by 1–2 years. AudioWorklet support only landed in Safari 14.1 (desktop) and iOS 14.5. Edge cases remain. Safari has historically had different behavior for parameter scheduling, suspended-state handling, and the autoplay policy. `setSinkId()` is not supported. WebKit's JavaScript engine has different JIT characteristics; hot paths that are cheap in V8 can be expensive in JavaScriptCore.
-
-**How to avoid:**
-- Test on Safari macOS **and** iOS Safari **every phase**, not at the end. Get this into your local dev loop from Phase 1.
-- Use a browser-compatibility shim library (`standardized-audio-context`) if you hit persistent differences — it normalizes API quirks. Weigh the dependency cost.
-- Set COOP/COEP headers from day one if you will ever need `SharedArrayBuffer`. Retrofitting is painful.
-- Profile AudioWorklet CPU on iOS specifically — it's roughly 2–3x more expensive than desktop Chrome for the same code. Design for the ceiling.
-- On iOS, handle interruptions (phone call, alarm, Siri, route change when plugging headphones) — the `AudioContext` state transitions to `interrupted` (new in 2025 spec) / `suspended` and your app must resume cleanly.
-- Document the Safari-on-silent-switch gotcha prominently.
-
-**Warning signs:**
-- "Works in Chrome, doesn't in Safari" bug reports late in development.
-- CPU pegged at 100% on iPad.
-- Silent audio on iOS with no error.
-- Preset loads crash or hang on Safari only.
-
-**Phase to address:** Every phase. Create a "smoke test on Safari + iOS Safari" acceptance step in every phase's definition of done.
-
----
-
-### Pitfall 10: Pedagogical UI that overwhelms on first run
-
-**What goes wrong:**
-The user lands on a page with an F1/F2 chart, a piano, a harmonic ladder, a formant-range overlay, a vocal-strategy selector, four formant sliders, a glottal-source section with LF/Rosenberg tabs, vibrato controls, jitter, voice-type selector, a preset browser, and an "about" panel. They have no idea what to do. They twist knobs at random, get a weird sound, conclude "I don't get it," close the tab. The tool fails at its first mission: *teach*.
-
-**Why it happens:**
-The developer (you) has the whole mental model loaded. Every control is meaningful *to you*. To a first-time user — even a voice teacher — the UI is a cockpit. Pedagogical tools especially suffer from this because their audience includes true beginners who need scaffolding, alongside experts who want the cockpit.
-
-**How to avoid:**
-- **Progressive disclosure.** First screen: one vowel, one voice type, one draggable marker on the F1/F2 chart, and audible output. Everything else lives behind a "More" or "Advanced" toggle. Default state is the *demonstrable core value*: drag the marker, hear the vowel change, see the piano update. That is the app, in 15 seconds, zero jargon.
-- **Presets are not a dump of raw numbers.** They're labeled with what they *teach*: "A soprano tuning R1 to f0 on a high note," "A male /ɑ/ at comfortable pitch," "Vibrato vs no vibrato on the same vowel." Each preset is a mini-lesson.
-- **Inline explanations** on hover / focus for every term. Not a separate docs page. "What's F1?" tooltip with 10 words and a link to a longer explanation panel.
-- **One guided tour** on first load — skippable, dismissible forever, and actually interactive (click here, hear that, move this).
-- **No hidden modes.** Auto-tune vs overlay must be visibly distinct at all times, never a buried toggle. Same for voice type.
-- **No silent failure states.** If a parameter is out of range, the UI says so visibly. If a strategy doesn't apply at the current pitch, the UI shows the "not applicable" state (see Pitfall 6).
-- Test with a non-developer voice teacher at *every* phase. Watch where they hesitate. Fix the hesitation before adding features.
-
-**Warning signs:**
-- A non-developer needs more than 30 seconds to produce a sound.
-- First impressions from users describe the UI as "a synth" rather than "a learning tool."
-- User feedback includes "what does F1 mean?" — a signal you haven't explained it inline.
-- Multiple modes exist but are visually indistinguishable.
-- The most common first interaction fails in some mode configuration.
-
-**Phase to address:** Every UI phase, but especially the first "shippable demo" phase. Build the guided-tour + progressive-disclosure skeleton **before** adding advanced features — retrofitting progressive disclosure into a cockpit UI is harder than doing it right first.
-
----
-
-### Pitfall 11: Accessibility retrofitted (or ignored)
-
-**What goes wrong:**
-The app is visual-first and gesture-first — two things that are hostile to assistive tech by default. A student with low vision, a teacher using a screen reader, or a keyboard-only user cannot explore the vowel space. In a pedagogical tool for a sound-based skill (singing), this is especially egregious — blind and low-vision singers exist.
-
-**Why it happens:**
-"Accessibility for interactive visualizations" is a research area, not a checkbox, and most audio-viz tutorials skip it entirely. Draggable SVG/canvas elements have no built-in ARIA story. Svelte doesn't solve this for you.
-
-**How to avoid:**
-- Every draggable marker is **also** operable by keyboard: arrow keys to nudge, Shift+arrow for larger steps, Enter/space to "grab." Use ARIA `role="slider"` with `aria-valuenow`, `aria-valuemin`, `aria-valuemax`, `aria-valuetext` (the last gives the screen reader "F1 at 700 hertz" rather than raw numbers).
-- Every preset and strategy is selectable via keyboard and labeled.
-- The audio itself is the primary output channel — lean into that. The app is already *more* accessible than a pure visualization because it *sounds* the data. Capitalize: offer a "sonification tour" mode that sweeps through the F1/F2 space audibly.
-- Provide a text readout of the current parameter state, live-updating in an `aria-live="polite"` region — "F1 700 Hz, F2 1220 Hz, f0 220 Hz, vowel /a/."
-- Respect `prefers-reduced-motion`: disable vibrato-sweep animations and any decorative motion.
-- Color contrast on the F1/F2 chart — avoid encoding critical info (e.g., "this is the target") by color alone.
-- Do not capture *every* keypress as a global shortcut; leave Tab, Esc, arrow navigation alone for standard focus behavior.
-
-**Warning signs:**
-- No keyboard alternative to any drag interaction.
-- Screen reader announces "image" or "canvas" for the F1/F2 chart.
-- No live region for parameter state.
-- Color is load-bearing ("red means out of range").
-- The tool is unusable with a screen reader and keyboard only.
-
-**Phase to address:** Every UI phase. Add "keyboard operable" and "screen reader announces state" to the definition of done for every interactive visualization. Do this from Phase 1 — retrofitting ARIA + keyboard into a gesture-first UI is 3–5x the original cost.
-
----
-
-### Pitfall 12: Voice that "looks right" on the F1/F2 chart but sounds wrong
-
-**What goes wrong:**
-The F1/F2 point sits exactly on the published /i/ coordinate. The audio sounds like /ɪ/ or /e/. A voice teacher listens and says "that's not /i/" — and they're correct. The visualization lied, or the audio did, and your pedagogical tool just taught something false.
-
-**Why it happens:**
-Vowel identity is not determined by F1 and F2 alone. F3 matters (especially for /i/, rhoticity, and the singer's formant cluster at F3–F5 ~2.4–3.2 kHz). Bandwidth matters — a formant at the right center frequency with too-wide bandwidth sounds like mush. Spectral tilt matters — the glottal source spectrum shapes the perceived "brightness" and indirectly the vowel identity. So does the overall level relationship between F1, F2, F3 (Klatt's "AV", "AH" etc. parameters). Lastly, the vowel diagram is typically in **Bark or mel**, not linear Hz — a point that's "centered on /i/" on a linear plot may be way off on a Bark plot.
-
-**How to avoid:**
-- Always synthesize F1–F4 (at minimum F1–F3) — not just F1 and F2. F3 is non-optional for recognizable /i/, /u/, and anything rhotic.
-- Use **literature bandwidths** (Klatt's defaults are a reasonable starting point: ~50–130 Hz depending on formant and vowel) — do not leave bandwidth at an arbitrary 100 Hz default.
-- Run an acceptance test: generate /i/, /ɛ/, /a/, /ɔ/, /u/ with your default voice type and literature values; record them; verify with at least one trained listener that they're identifiable. Do this *before* building direct-manipulation UI on top.
-- Match the F1/F2 chart's axis to the perceptual literature (Bark or mel), not raw Hz. Label clearly.
-- When a user drags to a point that's "valid on the chart" but physiologically implausible (e.g., F1 > F2), warn or clamp.
-- Include F3 as an editable parameter once users move past the basic view — not buried in a preset.
-
-**Warning signs:**
-- /i/ sounds like /ɪ/ or /ɨ/.
-- /u/ and /o/ are indistinguishable.
-- Only F1 and F2 are synthesized.
-- BW is a single global value across all formants and vowels.
-- Axis is linear Hz but compared against a literature chart that was in Bark.
-
-**Phase to address:** Audio engine / first vowel-preset phase. The "sounds like a real vowel" acceptance test is a **hard** gate for anything else downstream.
+**Phase to address:** Cascade Filter phase (test with rapid parameter sweeps from day one)
 
 ---
 
@@ -342,239 +160,95 @@ Vowel identity is not determined by F1 and F2 alone. F3 matters (especially for 
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Using `BiquadFilterNode` cascade instead of a Klatt resonator AudioWorklet | No worklet plumbing, ship today | Wrong formant shape, browser-dependent sound, Q-vs-BW headaches, eventual rewrite | Only for a throwaway prototype used to validate the UI before any audio work is load-bearing |
-| `setValueAtTime` for UI-driven parameters (no smoothing) | Simpler code, direct "set" semantics | Zipper noise, broken direct-manipulation UX, perceived as "feels laggy and glitchy" | Never in the interactive path |
-| Single male formant table as universal default | Preset data ready in 10 minutes | Teachers/researchers reject the tool on first use; retrofitting voice types forces UI rework | Never — ship with at least male/female/child presets |
-| Reading `AudioParam.value` to drive visuals | Automatic "audio-first" feel | Visuals drift relative to UI state, inconsistent after smoothing, breaks linked-updates invariant | Never |
-| Skipping Safari testing until "the end" | Faster Chrome dev loop | Weeks of fixes for subtle Safari issues at the most schedule-critical moment | Never if you claim "runs in the browser" |
-| No anti-aliasing on the glottal source ("it's just harmonics, low-pass it") | Cheaper pulse generator | Buzzy voice at high pitches, invalid demos of soprano strategies | Only for f0 < 250 Hz demos |
-| `postMessage` for per-frame parameter pushes | No ring-buffer / no COOP-COEP setup | Glitches under load, poor iPad performance, main-thread GC pressure | Event-rate (config) traffic only — never sample or frame rate for many params |
-| "We'll add accessibility in v2" | Faster UI MVP | 3–5x retrofit cost, bad reputation in the pedagogy market, excludes real users | Never — accessibility is cheapest when designed in |
-| Auto-applying vocal strategies globally (no applicable-range logic) | Simpler mode | Unsingable nonsense outside the intended pitch region, learners conclude strategies are broken | Never — strategies must know their applicable ranges |
-| Canvas/SVG drawn on the main thread mixing with heavy state computations | One codepath | Frame drops on drag, visual-audio drift, jank on older machines | OK only if the total per-frame work is profiled well under 8 ms |
-| Coefficient updates at k-rate (block boundary) instead of a-rate (per-sample) in worklet | Simpler worklet loop | Audible zipper at fast drags, especially on narrow formants | OK for non-interactive / preset-load transitions only |
-
----
+| Inline LF solver in the worklet instead of pre-computed tables | Simpler code, no table infrastructure | Unpredictable worklet performance, NaN risk, can't add band-limiting later | Never -- pre-compute from the start |
+| Hard-code vocal tract shapes for 10 vowels, interpolate | Avoids the inverse problem entirely | Can't show tract shape for arbitrary F1/F2 combinations; users notice discontinuities at interpolation boundaries | Acceptable as Phase 1 of the visualization -- ship interpolated shapes first, refine the articulatory model later |
+| Keep parallel-only topology, simulate cascade with gain adjustments | No graph topology changes needed | Wrong spectral envelope shape (cascade has different anti-resonance behavior), can't teach cascade vs parallel distinction | Never if cascade is a stated feature; acceptable if it's just "improved sound" |
+| Duplicate all formant filter code for cascade branch | Ship cascade faster | Two code paths to maintain; bug fixes must be applied twice; `syncParams()` becomes a tangled if/else | Only for initial prototype; refactor to shared `FormantTopology` abstraction within the same phase |
+| Use `formant-response.ts` parallel math for cascade visualization | Visualization "works" quickly | Shows wrong spectral envelope for cascade mode; misleading for pedagogical users | Never -- the visualization being wrong defeats the core value |
 
 ## Integration Gotchas
 
-| Integration | Common Mistake | Correct Approach |
-|-------------|----------------|------------------|
-| `AudioContext` creation | Constructing at module load | Lazy-create on first user gesture; `resume()` check on every interaction |
-| `AudioWorklet` module loading | `addModule()` called multiple times, or not awaited | Await `addModule()` exactly once per context before constructing the node; the promise is idempotent but the error on misuse is cryptic |
-| Static hosting (for `SharedArrayBuffer`) | Default hosting serves without COOP/COEP | Configure `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp` from day one on the deploy target (Netlify/Vercel/Cloudflare Pages all support this) |
-| Published formant datasets | Downloading one CSV, not checking whose vowels and pitch | Keep the dataset name, speaker demographics, and recording pitch as metadata in the preset; cite in UI |
-| Pointer Events (for drag) | Using `mousedown`/`mousemove` — breaks touch, breaks pen, breaks Safari gesture handling | Use Pointer Events (`pointerdown`/`pointermove`/`pointerup` + `setPointerCapture`) uniformly |
-| URL-encoded preset sharing | Naïvely JSON-stringify → Base64 → URL, explodes URL length | Versioned compact encoding; include a schema version byte so old URLs don't break after refactor |
-| Browser tab backgrounding | Assuming rAF keeps firing | rAF throttles/pauses when tab is hidden; audio keeps running, visuals stop — resume cleanly when tab returns |
-| `AnalyserNode` for harmonic-on-piano display | Using time-domain and computing FFT in JS | Use `getFloatFrequencyData` — it's already FFT-computed by the browser |
-
----
+| Integration Point | Common Mistake | Correct Approach |
+|-------------------|----------------|------------------|
+| LF worklet + existing Rosenberg worklet | Creating a second AudioWorkletProcessor class and swapping nodes at runtime (causes click) | Single processor that accepts a `model` parameter ('rosenberg' or 'lf'); switches internal sample generation, no graph change |
+| Cascade BiquadFilterNodes + existing `syncParams()` | Updating cascade filter parameters with the same timing and order as parallel | Cascade needs sequential settling; use slightly staggered `setTargetAtTime` start times or longer time constants |
+| Vocal tract SVG + existing F1/F2 vowel chart | Making vocal tract and vowel chart independent components that both listen to `voiceParams` separately | Share derived state: vowel chart computes articulatory params, vocal tract reads them. One computation, two visualizations |
+| `formant-response.ts` spectral envelope | Keeping the parallel summation formula when cascade is active | Add a `cascadeMagnitude()` function that multiplies individual formant magnitudes; switch based on active topology |
+| Voice presets + new LF parameters | Adding Rd/openQuotient to presets as optional fields that default to undefined | Make all presets specify both Rosenberg (openQuotient) and LF (Rd) values; the active model picks its parameters |
+| Strategy engine + cascade topology | Strategies auto-tune formant frequencies; cascade responds differently to rapid frequency changes | Add topology-aware smoothing to the strategy engine; cascade mode uses longer transition times |
 
 ## Performance Traps
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| Full chart redraw per pointer event | 30 fps on drag | Redraw on `requestAnimationFrame` *once* per frame regardless of event count; dirty-flag the UI state | As soon as the user drags fast |
-| Recreating AudioWorklet nodes on preset change | CPU spike, audible glitch on every preset click | Reuse nodes; update parameters on existing nodes; tear down only when AudioContext closes | Immediately noticeable when browsing presets |
-| DOM-based visualizations with hundreds of nodes | Stutter on updates | Use Canvas2D or WebGL for dense visualizations (F1/F2 chart, harmonic ladder). Use DOM for few-element UI | As soon as harmonic count > ~30 |
-| Allocating in `process()` inside AudioWorklet | Audible clicks, GC pauses | Pre-allocate in constructor; avoid array methods; use typed arrays | Within seconds of runtime; gets worse with session length |
-| Re-subscribing to Svelte stores / re-running `$effect`s cascade-wide on every param change | Main thread pegged during drag | Fine-grained `$state` per parameter, `$derived` for computed views, localized `$effect` scopes | At ~30+ reactive dependencies or dense update rates |
-| Computing Bark-scale conversions per draw call | Hot loop in hot path | Lookup table or inlined polynomial; only needed for display mapping | Immediately at 60 Hz redraw |
-| Re-rendering all formant-range ellipses every frame | Redundant paint | Draw static ranges to an offscreen canvas once, composite each frame | When all four formants show ranges |
-| Multiple AudioContexts | Ghost contexts consuming CPU after "stop"; scheduling confusion | Exactly one AudioContext for the app lifetime; suspend/resume, don't close/recreate | Immediately on Chrome; Safari worse |
-| GC pressure from boxed numbers in hot JS code | Frame-time sawtooth; micro-jank | Use `Float32Array` for coefficient buffers; avoid allocating objects in loops | Older iPads, long sessions |
-| Listening to pointer events on `window` without `{ passive: true }` or `setPointerCapture` | Scroll jank, touch-drag weirdness on Safari | Use `setPointerCapture` on the draggable element; avoid preventing scroll unless needed | Safari / iPad touch |
-
----
-
-## Security Mistakes
-
-For a client-side static synth, the security surface is narrow. What matters:
-
-| Mistake | Risk | Prevention |
-|---------|------|------------|
-| Parsing shared preset URLs without validation | XSS via a crafted URL ("preset name" field rendered as HTML) | Treat URL-decoded strings as untrusted; always render via text-interpolation, never `innerHTML` / `@html` |
-| `SharedArrayBuffer` without cross-origin isolation | Spectre mitigations block SAB → feature silently unavailable | Set COOP/COEP; feature-detect and fall back gracefully (not a security issue per se, but a deploy gotcha with security-origin roots) |
-| Embedding third-party analytics that break COOP/COEP | Lose `SharedArrayBuffer` availability; features break | Self-host or skip; any third-party script must be COEP-compatible (`crossorigin` CORP headers) |
-| Maximum output level not clamped | Hearing safety risk — a bug that sends the glottal pulse unfiltered at high gain is painful on headphones | Hard output limiter (e.g. `DynamicsCompressorNode` or simple tanh) on the final output bus; never bypassed |
-| Surprising autoplay on preset links | User opens shared URL in a classroom and instantly blasts audio | Always require one tap/click before audio starts, even on preset URLs; show a visible "Play" button |
-
----
+| Newton-Raphson in AudioWorklet `process()` | Sporadic audio dropouts, worse at high f0 | Pre-compute LF tables on main thread | Any f0 where solver needs >3 iterations (~5% of parameter space) |
+| Rebuilding Web Audio graph on topology switch | Click/pop, brief silence, memory leak | Build both topologies at init, crossfade between them | Every topology switch |
+| SVG vocal tract with too many path nodes (>200) | Sluggish frame rate when formants change rapidly during vibrato | Keep tract outline to <50 path segments; use Bezier curves, not polylines | Vibrato at 6Hz with visual updates at 60fps = 10 redraws per vibrato cycle |
+| Cascade filter chain in AudioWorklet (custom biquad) without pre-allocated buffers | GC pauses causing audio glitches | Pre-allocate all Float64Arrays for filter state in constructor; never allocate in `process()` | Immediately, but intermittently (GC timing is unpredictable) |
+| Updating vocal tract visualization every `$effect` tick during continuous drag | UI jank, especially on iPad | Throttle vocal tract updates to 30fps even if formant values update at 60fps; use `requestAnimationFrame` gating | When tract SVG complexity exceeds ~30 path elements with smooth curves |
 
 ## UX Pitfalls
 
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
-| No "what am I hearing?" label | User hears a vowel, can't name it, doesn't learn | Always show the current vowel name + IPA near the output; update as formants drag |
-| Hidden vocal-strategy auto-tune mode | User thinks the sound is "broken" when f0 changes unexpectedly shift formants | Prominent mode indicator; always visible toggle; separate visual language for overlay vs auto-tune |
-| No undo after a drag | Exploration fear — user doesn't want to ruin their preset | Undo/redo at least for parameter changes; preset "reset" button always visible |
-| Invisible drag affordances | User doesn't realize the F1/F2 chart is draggable | Cursor change on hover, drag handles or subtle pulse on first-run; explicit "drag me" hint the first time |
-| Jargon without explanation | Non-specialist learners bounce | Tooltip on every term; a persistent "What is [this]?" side panel |
-| F1/F2 chart axes unlabeled or Bark-vs-Hz confusion | User thinks literature values "don't match" | Always label axes with scale name; provide Hz/Bark toggle with tooltip |
-| No source citation on presets | Researcher loses trust immediately | Cite dataset and speaker group per preset |
-| Harmonic ladder that counts harmonics by color only | Colorblind users can't map colors to harmonic number | Number the harmonics; use shape + position in addition to color |
-| Vibrato defaulted on "realistic" levels at first load | First impression is wobble, not a clean vowel | Default vibrato off; present as a separate teaching step |
-| No way to compare "before / after" a parameter change | User can't learn — they only hear the after | "A/B" toggle that flips between two parameter snapshots |
-| F0 controlled only by a number input | User can't *play* pitches naturally | On-screen piano + MIDI keyboard + keyboard shortcuts; scrubbing the fundamental audibly |
-| Audio starts / stops abruptly | Click artifacts | Short fade in/out (5–20 ms envelope) on start/stop and on preset swap |
-
----
+| Showing LF parameters (Ra, Rk, Rg) directly | Unintelligible to singers and teachers; even researchers find the 3-parameter coupling confusing | Expose single Rd parameter as "voice quality" slider from "pressed" to "breathy"; show Ra/Rk/Rg as read-only derived values in an advanced panel |
+| Vocal tract shape changes instantaneously when formant changes | Shape "jumps" feel disconnected from the smooth audio transition | Animate tract shape transitions with the same time constant as the audio formant smoothing (60-150ms) |
+| No visual indication of cascade vs parallel mode | Users don't understand why the sound changed | Show a small schematic of the filter topology (series arrows vs fan-out) next to the formant curves; highlight which mode is active |
+| Vocal tract visualization implies physical accuracy it doesn't have | Teachers show it to students as "this is what your throat looks like" | Add a subtle label: "Simplified model -- approximate shape for these formants" |
+| Cascade mode sounds quieter than parallel at same master gain | User thinks cascade is broken | Auto-normalize output level when switching topology; or show a visual indicator explaining the level difference |
+| LF model sounds identical to Rosenberg at default settings | User wonders why LF exists | Default to slightly different Rd values that highlight the LF model's strengths (breathy or pressed phonation where Rosenberg sounds generic) |
 
 ## "Looks Done But Isn't" Checklist
 
-Things that appear complete but are missing critical pieces.
-
-- [ ] **Glottal source:** Often missing anti-aliasing — verify by running at f0 = 800 Hz and checking spectrum for alias ghosts.
-- [ ] **Glottal source:** Often missing DC-offset fix — verify the waveform mean is ~0 over a period.
-- [ ] **Formant filter:** Often missing per-sample (a-rate) coefficient smoothing — verify by rapid F1 drag on a sustained vowel, no zipper.
-- [ ] **Formant filter:** Often missing F3+ — verify /i/ sounds like /i/ and not /ɪ/.
-- [ ] **Formant filter:** Often missing literature bandwidths — verify vowel clarity against a trained listener.
-- [ ] **F1/F2 chart:** Often missing axis scale label — verify users understand Hz vs Bark.
-- [ ] **F1/F2 chart:** Often missing keyboard operability — verify full interaction without a mouse.
-- [ ] **Vocal strategies:** Often missing applicable-range metadata — verify R1:f0 degrades gracefully at low f0.
-- [ ] **Vocal strategies:** Often missing visual distinction between auto-tune and overlay — verify a new user can tell which mode they're in.
-- [ ] **Preset system:** Often missing source citations — verify every preset has a "from [dataset]" tooltip.
-- [ ] **Preset system:** Often missing voice-type selection — verify the same preset sounds appropriate on male/female/child.
-- [ ] **Linked updates:** Often missing unified smoothing time constant between audio and visuals — verify drag with the ear against the eye.
-- [ ] **Audio start:** Often missing the silent-Safari edge case — verify on iOS with silent switch on.
-- [ ] **Audio start:** Often missing resume-on-tab-return — verify by backgrounding the tab for 60 s and returning.
-- [ ] **UI first run:** Often missing guided tour — verify a first-time user produces sound within 15 seconds without reading docs.
-- [ ] **UI first run:** Often missing progressive disclosure — verify the default view shows at most 5–7 primary controls.
-- [ ] **Accessibility:** Often missing `aria-live` readout of parameter state — verify a screen-reader user can know what the current vowel is.
-- [ ] **Accessibility:** Often missing keyboard alternatives to every drag — verify arrow-key control of every marker.
-- [ ] **Output:** Often missing hard limiter on the final bus — verify no preset or extreme parameter can send painful levels to headphones.
-- [ ] **Preset sharing:** Often missing schema versioning on the URL format — verify old URLs can still load after a future schema change (or at least degrade gracefully).
-- [ ] **Safari / iOS:** Often missing cross-browser smoke test — verify every acceptance-gate demo on Safari macOS and iOS Safari, not just Chrome.
-- [ ] **Memory:** Often missing a "leave the app running for an hour" test — verify memory and CPU stay stable over long sessions.
-
----
+- [ ] **LF model:** Sounds correct at 120Hz male f0 -- verify it also works at 800Hz+ soprano f0 without aliasing artifacts
+- [ ] **LF model:** Works with default Rd -- verify extreme Rd values (0.3 pressed, 2.7 breathy) don't produce NaN or silence
+- [ ] **Cascade filters:** Sounds correct at steady state -- verify rapid formant sweeps (drag on vowel chart) don't produce transient pops
+- [ ] **Cascade filters:** Output level matches parallel mode -- verify by switching between modes at same parameter values
+- [ ] **Vocal tract:** Shape looks correct for /a/ and /i/ -- verify it also handles intermediate/unusual formant combinations without impossible geometry
+- [ ] **Vocal tract:** Updates smoothly during vibrato -- verify at 6Hz vibrato rate that the animation doesn't stutter or jump
+- [ ] **FormantCurves visualization:** Still correct -- verify it uses cascade math (multiply) not parallel math (sum) when cascade is active
+- [ ] **Presets:** All existing presets still work -- verify Rosenberg presets don't silently load LF parameters or vice versa
+- [ ] **Strategy engine:** Still works with cascade topology -- verify auto-tuning doesn't cause cascade transient blowup
+- [ ] **Safari/iPad:** Test LF + cascade specifically on Safari -- AudioWorklet performance is tighter on iPad; pre-computed tables help here
 
 ## Recovery Strategies
 
-When pitfalls occur despite prevention, how to recover.
-
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| AudioContext never started | LOW | Add a visible "Start audio" button; add resume-on-interaction guard; ship hotfix |
-| Zipper noise on drag | LOW-MEDIUM | Replace direct `.value` writes with `setTargetAtTime(...,10e-3)`; if in custom worklet, add a-rate coefficient smoothing |
-| Aliased glottal pulse | MEDIUM | Swap in an oversample-and-decimate wrapper around the pulse generator (can be staged); longer-term move to BLIT/BLEP |
-| Wrong formant topology (BiquadFilterNode cascade) | HIGH | Write the Klatt-style worklet; swap behind an `AudioWorkletNode` interface; keep old path behind a feature flag for a release; accept one phase of migration |
-| Wrong/misleading vowels (F1/F2 only, no F3) | MEDIUM | Add F3 to the engine and presets; update voice-type tables; audit preset library |
-| Vocal strategies producing nonsense | LOW-MEDIUM | Add applicable-range metadata; add blend/clamp logic; update preset descriptions |
-| Visual/audio drift | MEDIUM | Refactor parameter flow to single-source-of-truth state; unify smoothing constants; profile drag performance |
-| `postMessage` hot-path glitches | MEDIUM | Convert sample/frame-rate params to `AudioParam`s; move large data to `SharedArrayBuffer` ring (requires COOP/COEP — may be a deploy change) |
-| Safari-only bugs discovered late | MEDIUM-HIGH | Per-bug triage; prioritize the subset that block core value; potentially ship a "best on Chrome/Firefox" notice and defer Safari-only polish |
-| UI overwhelming new users | MEDIUM | Build a dedicated "simple mode" landing view that hides everything except the core loop; progressive disclosure retrofit |
-| Accessibility gaps | HIGH if retrofitted | Add ARIA + keyboard ops incrementally, component by component, highest-impact interactive elements first (F1/F2 chart, preset picker, play button) |
-| Memory leaks over long sessions | MEDIUM | Audit node lifecycle (reuse, don't recreate); use DevTools heap snapshots to find retaining paths; suspend-don't-close the AudioContext |
-| Wrong preset data (male default on soprano app) | LOW | Ship an updated preset pack; add voice-type selector prominently; credit datasets in UI |
-| Clipping / painful output | LOW | Insert a `DynamicsCompressorNode` or hard `tanh` limiter at the bus output; hotfix |
-
----
+| LF solver diverges in worklet (NaN in audio) | LOW | Add NaN guard (`sample = isFinite(sample) ? sample : 0`), then move to pre-computed tables |
+| Cascade gain blowup (clipping) | LOW | Add `DynamicsCompressorNode` after cascade output as immediate fix; design proper gain normalization as follow-up |
+| Vocal tract shows impossible geometry | MEDIUM | Constrain control points to convex hull of valid shapes; add boundary checking before SVG render |
+| Graph rebuild click on topology switch | MEDIUM | Refactor to dual-topology with crossfade; requires audio bridge redesign but existing code stays |
+| Aliased LF at high f0 | MEDIUM | Retrofit band-limited tables; requires regenerating all lookup tables but doesn't change worklet interface |
+| `formant-response.ts` showing wrong envelope for cascade | LOW | Add `cascadeMagnitude()` function; mechanical change |
+| Presets broken by new parameters | LOW | Add migration: existing presets get default Rd=1.0, topology='parallel' |
 
 ## Pitfall-to-Phase Mapping
 
-Assuming a roadmap structure along the lines of:
-- **P1: Audio engine foundations** (AudioContext, worklet plumbing, output bus, one-button "make a sound")
-- **P2: Glottal source + simple formant filter chain** (Klatt resonators, F1–F4, one voice)
-- **P3: Vowel presets + F1/F2 direct-manipulation chart** (voice types, data tables, drag UX)
-- **P4: Linked visualizations** (piano + harmonics, formant-range overlay, synchronized updates)
-- **P5: Vocal strategies** (R1:f0 family, overlay vs auto-tune modes, applicable ranges)
-- **P6: Vibrato + jitter** (modulation)
-- **P7: Pedagogical UX layer** (guided tour, inline explanations, accessibility hardening)
-- **P8: Sharing + polish** (URL presets, cross-browser QA, performance tuning)
-
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| #1 AudioContext never starts | P1 | Manual test: first click produces sound on Chrome, Firefox, Safari macOS, iOS Safari; tab-return test |
-| #2 Zipper noise on drag | P2 (engine) + P3 (UI hookup) | Sustained vowel, rapid F1 drag, no audible clicks; automated spectrum regression on a scripted drag sequence |
-| #3 Aliased glottal pulse | P2 | Spectrum check at f0 = 800 Hz shows no inharmonic content; waveform DC ~0 |
-| #4 Wrong filter topology | P2 | A/B listening test vs a reference Klatt implementation; literature vowel test (/i/, /ɛ/, /a/, /ɔ/, /u/) identifiable by trained listener |
-| #5 Hard-coded male table | P3 | Voice-type selector visible; each voice type ships its own preset set; all presets cite source |
-| #6 Vocal strategies nonsense | P5 | F0 sweep from C3 to C6 under each strategy produces plausible sound at all pitches; out-of-range state visible |
-| #7 Audio-visual drift | P4 (core linked-updates phase) | Drag F2 fast; audio matches visual within 15 ms; 60 fps sustained; single-source-of-truth param invariant documented |
-| #8 `postMessage` hot path | P1 architecture decision + P2 implementation | Architecture doc committed; worklet uses `AudioParam`s for continuous streams; no per-frame postMessage in profile |
-| #9 Safari / iOS lag | Every phase | Each phase's definition of done includes a Safari macOS + iOS smoke test |
-| #10 Overwhelming UI | P7 (but scaffold from P1) | First-run user test: produces sound in <15 s, names one thing they learned in <60 s |
-| #11 Accessibility retrofit | Every UI phase (P3, P4, P5, P7) | Keyboard-only walkthrough completes the core loop; screen reader announces parameter state |
-| #12 Vowels sound wrong | P2 (engine) gate, re-verified P3, P5 | Blind-listening acceptance test with ≥1 trained voice listener identifying synthesized vowels |
-
-**Research flags for phases (where deeper ad-hoc research is likely needed):**
-- **P2 (engine):** Decide anti-aliasing strategy (BLIT/BLEP vs oversample-decimate) — needs a spike.
-- **P2 (engine):** Decide coefficient-smoothing approach (per-sample vs interpolated per-block) — needs a spike.
-- **P5 (strategies):** Collect applicable-range literature per strategy per voice type — needs focused literature pass.
-- **P8 (sharing):** COOP/COEP deploy config — needs verification on actual target host.
-
-**Phases unlikely to need fresh research (standard patterns):**
-- P1 plumbing, P6 vibrato (LFO + random walk are standard), P8 URL-encoding.
-
----
+| LF solver diverges (Pitfall 1) | LF Glottal Model | Unit test: LF table generation completes for all Rd in [0.3, 2.7] at 0.01 steps; no NaN in output |
+| Cascade gain blowup (Pitfall 2) | Cascade Filter | Integration test: sweep F1 from 300-900Hz, measure peak output stays within 6dB of steady-state level |
+| Impossible vocal tract (Pitfall 3) | Vocal Tract Visualization | Visual test: render tract for all Hillenbrand vowel centroids; manual inspection for self-intersection |
+| Topology switch breaks bridge (Pitfall 4) | Cascade Filter | Test: switch parallel<->cascade 100x while audio plays; no clicks, no silence, no console errors |
+| LF aliasing at high f0 (Pitfall 5) | LF Glottal Model | Spectral test: at f0=800Hz, no energy peaks between harmonics (aliased content) above -60dB |
+| Cascade transient blowup (Pitfall 6) | Cascade Filter | Integration test: drag formant across full range in <500ms; peak output stays within 12dB of steady-state |
 
 ## Sources
 
-**Web Audio / AudioWorklet:**
-- [MDN — Autoplay guide for media and Web Audio APIs](https://developer.mozilla.org/en-US/docs/Web/Media/Guides/Autoplay)
-- [MDN — Web Audio API best practices](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Best_practices)
-- [MDN — BiquadFilterNode](https://developer.mozilla.org/en-US/docs/Web/API/BiquadFilterNode)
-- [MDN — AudioWorklet](https://developer.mozilla.org/en-US/docs/Web/API/AudioWorklet)
-- [MDN — AudioWorkletNode.port](https://developer.mozilla.org/en-US/docs/Web/API/AudioWorkletNode/port)
-- [MDN — Visualizations with Web Audio API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Visualizations_with_Web_Audio_API)
-- [Paul Adenot — Web Audio API performance and debugging notes](https://padenot.github.io/web-audio-perf/)
-- [Loke.dev — Stop Allocating Inside the AudioWorkletProcessor: Lock-Free Ring Buffer for Zero-Jitter Web Audio](https://loke.dev/blog/stop-allocating-inside-audioworkletprocessor)
-- [Chrome for Developers — Audio Worklet is now available by default](https://developer.chrome.com/blog/audio-worklet)
-- [Matt Montag — Unlock JavaScript Web Audio in Safari and Chrome](https://www.mattmontag.com/web/unlock-web-audio-in-safari-for-ios-and-macos)
-- [Soledad Penadés — Using AudioWorklets to generate audio](https://soledadpenades.com/posts/2025/using-audioworklets-to-generate-audio/)
-- [Soledad Penadés — Lessons learned updating code that uses Web Audio](https://soledadpenades.com/posts/2024/lessons-learned-updating-code-that-uses-web-audio/)
-- [GitHub — WebAudio/web-audio-api issue #2632: AudioWorklet is a real world disaster](https://github.com/WebAudio/web-audio-api/issues/2632)
-- [GitHub — WebAudio/web-audio-api issue #373: How to avoid generating garbage in hot paths?](https://github.com/WebAudio/web-audio-api/issues/373)
-- [GitHub — WebAudio/web-audio-api issue #904: AudioNode stop/disconnect doesn't free memory](https://github.com/WebAudio/web-audio-api/issues/904)
-- [GitHub — chrisguttandin/standardized-audio-context issue #410: Memory leak with AudioContext](https://github.com/chrisguttandin/standardized-audio-context/issues/410)
-- [W3C — TPAC 2025: Audio WG update](https://www.w3.org/2025/11/TPAC/demo-audio-wg-update.html)
-
-**DSP / Formant synthesis:**
-- [Dennis H. Klatt — Software for a cascade/parallel formant synthesizer (JASA 1980)](https://www.fon.hum.uva.nl/david/ma_ssp/doc/Klatt-1980-JAS000971.pdf)
-- [Formant synthesis: Turning cascade into parallel with applications to the Klatt synthesizer](https://www.researchgate.net/publication/243519223_Formant_synthesis_Turning_cascade_into_parallel_with_applications_to_the_Klatt_synthesizer)
-- [Audio EQ Cookbook (Robert Bristow-Johnson)](https://webaudio.github.io/Audio-EQ-Cookbook/audio-eq-cookbook.html)
-- [EarLevel Engineering — Cascading filters](https://www.earlevel.com/main/2016/09/29/cascading-filters/)
-- [Neil Robertson — Design IIR Filters Using Cascaded Biquads](https://www.dsprelated.com/showarticle/1137.php)
-- [Wikipedia — Digital biquad filter](https://en.wikipedia.org/wiki/Digital_biquad_filter)
-- [Gobl — The LF Model in the Frequency Domain for Glottal Airflow (Interspeech 2021)](https://www.isca-archive.org/interspeech_2021/gobl21_interspeech.pdf)
-- [Stochastic models of glottal pulses from Rosenberg and LF models (Speech Communication)](https://www.sciencedirect.com/science/article/abs/pii/S0885230821000322)
-- [A hybrid LF-Rosenberg frequency-domain model of the glottal pulse (IEEE)](https://ieeexplore.ieee.org/document/6701892/)
-- [Glottal Source Processing: from Analysis to Applications (arXiv)](https://arxiv.org/pdf/1912.12604)
-
-**Voice science / formant data / strategies:**
-- [Svante Granqvist — Madde Synthesizer](https://www.tolvan.com/index.php?page=/madde/madde.php)
-- [Granqvist — New technology for teaching voice science and pedagogy: the Madde Synthesizer](https://go.gale.com/ps/i.do?id=GALE%7CA282426664)
-- [The KTH synthesis of singing (ResearchGate)](https://www.researchgate.net/publication/26450063_The_KTH_synthesis_of_singing)
-- [Praat — Peterson & Barney 1952 formant table](https://www.fon.hum.uva.nl/praat/manual/Create_formant_table__Peterson___Barney_1952_.html)
-- [Hillenbrand — Acoustic characteristics of American English vowels (1995)](https://pubmed.ncbi.nlm.nih.gov/7759650/)
-- [Static measurements of vowel formant frequencies and bandwidths: A review](https://pmc.ncbi.nlm.nih.gov/articles/PMC6002811/)
-- [Vowel Acoustic Space Development in Children](https://pmc.ncbi.nlm.nih.gov/articles/PMC2597712/)
-- [Corner vowels in males and females ages 4 to 20 years: F1–F4](https://pmc.ncbi.nlm.nih.gov/articles/PMC6850954/)
-- [Voice Science — Formant Tuning: Resonance Strategies in Singing](https://www.voicescience.org/lexicon/formant-tuning/)
-- [Voice Science — Singer's Formant](https://www.voicescience.org/2025/11/lexicon/singers-formant/)
-- [The Perception of Formant Tuning in Soprano Voices (Journal of Voice)](https://www.sciencedirect.com/science/article/abs/pii/S0892199717301200)
-- [UNSW — Vocal resonance, resonance tuning and vowel changes (especially for sopranos)](https://newt.phys.unsw.edu.au/jw/soprane.html)
-- [Shifting Gears: Formant Tuning Strategies of Elite Operatic Baritones](https://www.academia.edu/32667155/Shifting_Gears_Formant_Tuning_Strategies_of_Elite_Operatic_Baritones)
-- [Second Formant Tuning and the Tenor Voice](https://www.academia.edu/35415066/Second_Formant_Tuning_and_The_Tenor_Voice)
-- [VoiceScienceWorks — Using Madde to formant tune](https://www.voicescienceworks.org/eyes-in-the-studio/using-madde-to-formant-tune)
-
-**Svelte performance:**
-- [Svelte — Introducing runes](https://svelte.dev/blog/runes)
-- [Svelte docs — $state](https://svelte.dev/docs/svelte/$state)
-- [DEV — Real-world Svelte 5: Handling high-frequency real-time data with Runes](https://dev.to/polliog/real-world-svelte-5-handling-high-frequency-real-time-data-with-runes-3i2f)
-- [SitePoint — React 19 Compiler vs Svelte 5: Latency Benchmark Results](https://www.sitepoint.com/react-19-compiler-vs-svelte-5-virtual-dom-latency-benchmark/)
-
-**UX / accessibility:**
-- [Nielsen Norman Group — Direct Manipulation: Definition](https://www.nngroup.com/articles/direct-manipulation/)
-- [Nielsen Norman Group — Drag–and–Drop: How to Design for Ease of Use](https://www.nngroup.com/articles/drag-drop/)
-- [Smart Interface Design Patterns — Drag-and-Drop UX](https://smart-interface-design-patterns.com/articles/drag-and-drop-ux/)
-- [Pencil & Paper — Drag & Drop UX Design Best Practices](https://www.pencilandpaper.io/articles/ux-pattern-drag-and-drop)
-- [Chart Reader: Accessible Visualization Experiences Designed with Screen Reader Users (CHI 2023)](https://dl.acm.org/doi/10.1145/3544548.3581186)
-- [WebAIM — Designing for Screen Reader Compatibility](https://webaim.org/techniques/screenreader/)
+- Klatt, D.H. (1980). ["Software for a cascade/parallel formant synthesizer"](https://www.fon.hum.uva.nl/david/ma_ssp/doc/Klatt-1980-JAS000971.pdf) -- Journal of the Acoustical Society of America. Canonical reference for cascade vs parallel topology tradeoffs.
+- Fant, G., Liljencrants, J., & Lin, Q. (1985). "A four-parameter model of glottal flow" -- STL-QPSR. Original LF model definition.
+- Gobl, C. (2021). ["The LF Model in the Frequency Domain for Glottal Airflow Modelling Without Aliasing Distortion"](https://www.isca-archive.org/interspeech_2021/gobl21_interspeech.html) -- INTERSPEECH. Band-limited LF implementation.
+- Smith, J.O. ["Constant Peak-Gain Resonator"](https://www.dsprelated.com/freebooks/filters/Constant_Peak_Gain_Resonator.html) -- Introduction to Digital Filters. Gain normalization for cascaded resonators.
+- Smith, J.O. ["Formant Filtering Example"](https://ccrma.stanford.edu/~jos/filters/Formant_Filtering_Example.html) -- Introduction to Digital Filters. Cascade formant filter implementation.
+- Maeda, S. (1990). "Compensatory Articulation During Speech: Evidence from the Analysis and Synthesis of Vocal-Tract Shapes Using an Articulatory Model" -- Speech Production and Speech Modelling. 7-parameter articulatory model.
+- [Pink Trombone (Modular)](https://github.com/yonatanrozin/Modular-Pink-Trombone) -- AudioWorklet vocal tract synthesis reference implementation.
+- [klatt-syn](https://github.com/chdh/klatt-syn) -- TypeScript Klatt synthesizer reference. Study cascade/parallel switching.
+- [LF model Python implementation](https://github.com/mvsoom/lf-model) -- Reference for implicit equation solving and Rd parameterization.
+- [Web Audio API performance notes](https://padenot.github.io/web-audio-perf/) -- AudioWorklet optimization guidance.
+- [BiquadFilterNode MDN](https://developer.mozilla.org/en-US/docs/Web/API/BiquadFilterNode) -- Q factor overflow limit (~770.6), gain clipping behavior.
+- [Apsipa 2015: Aliasing-free discrete-time glottal source](http://www.apsipa.org/proceedings_2015/pdf/159.pdf) -- Band-limited LF using cosine series.
 
 ---
-*Pitfalls research for: Formant Canvas (voice synthesis + linked visualization pedagogy tool)*
-*Researched: 2026-04-11*
+*Pitfalls research for: Formant Canvas v0.2 -- LF glottal model, cascade formant filters, vocal tract visualization*
+*Researched: 2026-04-13*
