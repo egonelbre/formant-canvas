@@ -7,6 +7,7 @@
   } from './strategy-chart-math.ts';
   import { R2_STRATEGIES } from '../strategies/definitions.ts';
   import { VOICE_PRESETS } from '../data/voice-presets.ts';
+  import { voiceParams } from '../audio/state.svelte.ts';
 
   interface Props {
     f0: number;
@@ -25,8 +26,10 @@
   }: Props = $props();
 
   let containerEl: HTMLDivElement | undefined = $state();
+  let svgEl: SVGSVGElement | undefined = $state();
   let width = $state(280);
   let height = $state(180);
+  let dragging = $state(false);
 
   // Margins
   const marginLeft = 45;
@@ -111,16 +114,63 @@
 
   // F2 marker y position (clamped to plot)
   let f2Y = $derived(Math.max(0, Math.min(plotHeight, yScale(f2Freq))));
+
+  function pointerToHz(e: PointerEvent): { pitch: number; freq: number } | null {
+    if (!svgEl) return null;
+    const rect = svgEl.getBoundingClientRect();
+    const plotX = (e.clientX - rect.left) / rect.width * width - marginLeft;
+    const plotY = (e.clientY - rect.top) / rect.height * height - marginTop;
+    const pitch = Math.max(pitchMin, Math.min(pitchMax, xScale.invert(plotX)));
+    const freq = Math.max(freqMin, Math.min(freqMax, yScale.invert(plotY)));
+    return { pitch, freq };
+  }
+
+  function onPointerDown(e: PointerEvent) {
+    e.preventDefault();
+    dragging = true;
+    if (voiceParams.strategyMode === 'locked') {
+      voiceParams.strategyOverriding = true;
+    }
+    svgEl?.setPointerCapture(e.pointerId);
+    updateFromPointer(e);
+  }
+
+  function onPointerMove(e: PointerEvent) {
+    if (!dragging) return;
+    e.preventDefault();
+    updateFromPointer(e);
+  }
+
+  function onPointerUp(e: PointerEvent) {
+    dragging = false;
+    if (voiceParams.strategyOverriding) {
+      voiceParams.strategyOverriding = false;
+    }
+    svgEl?.releasePointerCapture(e.pointerId);
+  }
+
+  function updateFromPointer(e: PointerEvent) {
+    const result = pointerToHz(e);
+    if (!result) return;
+    voiceParams.f0 = result.pitch;
+    voiceParams.f2Freq = result.freq;
+  }
 </script>
 
 <div class="chart-container" bind:this={containerEl} bind:clientWidth={width} bind:clientHeight={height}>
 <svg
+  bind:this={svgEl}
   {width}
   {height}
   viewBox="0 0 {width} {height}"
   preserveAspectRatio="xMidYMid meet"
   role="img"
   aria-label="R2 strategy chart showing second resonance frequency vs pitch"
+  style="touch-action: none; cursor: {dragging ? 'grabbing' : 'crosshair'};"
+  onpointerdown={onPointerDown}
+  onpointermove={onPointerMove}
+  onpointerup={onPointerUp}
+  onpointercancel={onPointerUp}
 >
   <!-- Title -->
   <text
