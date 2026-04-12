@@ -77,14 +77,13 @@
   // Match audio smoothing: setTargetAtTime(_, _, 0.06) reaches ~95% in 180ms
   const TWEEN_DURATION = 180;
 
-  // Tweened x positions for formant center markers
-  const tweenedCenterX = [
-    tweened(0, { duration: TWEEN_DURATION }),
-    tweened(0, { duration: TWEEN_DURATION }),
-    tweened(0, { duration: TWEEN_DURATION }),
-    tweened(0, { duration: TWEEN_DURATION }),
-    tweened(0, { duration: TWEEN_DURATION }),
-  ];
+  // Tweened x positions for formant center markers (named individually for Svelte $ syntax)
+  const tweenedF1X = tweened(0, { duration: TWEEN_DURATION });
+  const tweenedF2X = tweened(0, { duration: TWEEN_DURATION });
+  const tweenedF3X = tweened(0, { duration: TWEEN_DURATION });
+  const tweenedF4X = tweened(0, { duration: TWEEN_DURATION });
+  const tweenedF5X = tweened(0, { duration: TWEEN_DURATION });
+  const tweenedStores = [tweenedF1X, tweenedF2X, tweenedF3X, tweenedF4X, tweenedF5X];
 
   // Update tweened positions when formant frequencies change
   $effect(() => {
@@ -92,7 +91,7 @@
     for (let fi = 0; fi < formants.length; fi++) {
       const freq = formants[fi].freq;
       if (freq >= MIN_FREQ && freq <= MAX_FREQ) {
-        tweenedCenterX[fi].set(freqToX(freq));
+        tweenedStores[fi].set(freqToX(freq));
       }
     }
   });
@@ -100,12 +99,13 @@
   // Formant center markers (dashed vertical lines at F1-F5 center frequencies)
   let centerMarkers = $derived.by(() => {
     const formants = voiceParams.formants;
+    const xs = [$tweenedF1X, $tweenedF2X, $tweenedF3X, $tweenedF4X, $tweenedF5X];
     const markers: { x: number; color: string; label: string; visible: boolean }[] = [];
     for (let fi = 0; fi < formants.length; fi++) {
       const freq = formants[fi].freq;
       const visible = freq >= MIN_FREQ && freq <= MAX_FREQ;
       markers.push({
-        x: visible ? $tweenedCenterX[fi] : 0,
+        x: visible ? xs[fi] : 0,
         color: FORMANT_COLORS[fi],
         label: FORMANT_LABELS[fi],
         visible,

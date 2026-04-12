@@ -19,14 +19,13 @@
   const TARGET_KEYS = ['f1', 'f2', 'f3', 'f4', 'f5'] as const;
   const TARGET_LABELS = ['T1', 'T2', 'T3', 'T4', 'T5'];
 
-  // Tweened x positions for each formant target (indexed by key)
-  const tweenedX: Record<string, ReturnType<typeof tweened<number>>> = {
-    f1: tweened(0, { duration: TWEEN_DURATION }),
-    f2: tweened(0, { duration: TWEEN_DURATION }),
-    f3: tweened(0, { duration: TWEEN_DURATION }),
-    f4: tweened(0, { duration: TWEEN_DURATION }),
-    f5: tweened(0, { duration: TWEEN_DURATION }),
-  };
+  // Named tweened stores for Svelte $ syntax
+  const tweenedF1 = tweened(0, { duration: TWEEN_DURATION });
+  const tweenedF2 = tweened(0, { duration: TWEEN_DURATION });
+  const tweenedF3 = tweened(0, { duration: TWEEN_DURATION });
+  const tweenedF4 = tweened(0, { duration: TWEEN_DURATION });
+  const tweenedF5 = tweened(0, { duration: TWEEN_DURATION });
+  const tweenedStores = [tweenedF1, tweenedF2, tweenedF3, tweenedF4, tweenedF5];
 
   let strategyTargets = $derived.by(() => {
     if (voiceParams.strategyMode === 'off') return null;
@@ -37,25 +36,28 @@
     return computeTargets(r1, r2, sf, voiceParams.f0, voiceParams.voicePreset ?? 'baritone');
   });
 
-  // Which target keys are active (non-null)
-  let activeKeys = $derived.by(() => {
-    if (!strategyTargets) return [] as string[];
-    const keys: string[] = [];
-    for (const k of TARGET_KEYS) {
-      if (strategyTargets.targets[k] !== null) keys.push(k);
-    }
-    return keys;
-  });
-
   // Update tweened positions when targets change
   $effect(() => {
     if (!strategyTargets) return;
-    for (const k of TARGET_KEYS) {
-      const val = strategyTargets.targets[k];
+    for (let i = 0; i < TARGET_KEYS.length; i++) {
+      const val = strategyTargets.targets[TARGET_KEYS[i]];
       if (val !== null) {
-        tweenedX[k].set(freqToX(val));
+        tweenedStores[i].set(freqToX(val));
       }
     }
+  });
+
+  // Build target lines from tweened positions
+  let targetLines = $derived.by(() => {
+    if (!strategyTargets) return [];
+    const xs = [$tweenedF1, $tweenedF2, $tweenedF3, $tweenedF4, $tweenedF5];
+    const lines: { x: number; label: string; key: string }[] = [];
+    for (let i = 0; i < TARGET_KEYS.length; i++) {
+      if (strategyTargets.targets[TARGET_KEYS[i]] !== null) {
+        lines.push({ x: xs[i], label: TARGET_LABELS[i], key: TARGET_KEYS[i] });
+      }
+    }
+    return lines;
   });
 
   let overriding = $derived(voiceParams.strategyOverriding);
@@ -66,15 +68,13 @@
   let lineOpacity = $derived(overriding ? 0.4 : (inRange && !clamped ? 0.8 : 0.4));
 </script>
 
-{#if strategyTargets && activeKeys.length > 0}
+{#if strategyTargets && targetLines.length > 0}
   <g pointer-events="none">
-    {#each activeKeys as key, i (key)}
-      {@const idx = TARGET_KEYS.indexOf(key as typeof TARGET_KEYS[number])}
-      {@const x = $tweenedX[key]}
+    {#each targetLines as line (line.key)}
       <line
-        x1={x}
+        x1={line.x}
         y1={0}
-        x2={x}
+        x2={line.x}
         y2={svgHeight}
         stroke={OVERLAY_COLOR}
         stroke-width="2"
@@ -82,23 +82,23 @@
         opacity={lineOpacity}
       />
       <text
-        x={x}
+        x={line.x}
         y={harmonicRegionHeight - 8}
         text-anchor="middle"
         font-size="10"
         fill={OVERLAY_COLOR}
         opacity={lineOpacity}
-      >{TARGET_LABELS[idx]}</text>
+      >{line.label}</text>
       {#if clamped}
         <circle
-          cx={x}
+          cx={line.x}
           cy={10}
           r={6}
           fill={WARNING_COLOR}
           opacity="0.8"
         />
         <text
-          x={x}
+          x={line.x}
           y={14}
           text-anchor="middle"
           font-size="9"
