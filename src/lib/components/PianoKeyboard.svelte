@@ -119,14 +119,67 @@
     if (highlightMidi === midi || isPressed(midi)) return '#ffffff';
     return isBlackKey(midi) ? '#a0a0a0' : '#555555';
   }
+
+  // Pointer drag support: click or drag across keys to set pitch
+  let dragging = $state(false);
+  let svgEl: SVGSVGElement | undefined = $state();
+
+  function midiFromPointer(e: PointerEvent): number | null {
+    if (!svgEl) return null;
+    const rect = svgEl.getBoundingClientRect();
+    const xRatio = (e.clientX - rect.left) / rect.width;
+    const yRatio = (e.clientY - rect.top) / rect.height;
+    const svgX = xRatio * svgWidth;
+    const svgY = yRatio * WHITE_KEY_HEIGHT;
+
+    // Check black keys first (they're on top)
+    if (svgY < BLACK_KEY_HEIGHT) {
+      for (const key of blackKeys) {
+        if (svgX >= key.x && svgX < key.x + BLACK_KEY_WIDTH) {
+          return key.midi;
+        }
+      }
+    }
+    // Then white keys
+    for (const key of whiteKeys) {
+      if (svgX >= key.x && svgX < key.x + WHITE_KEY_WIDTH) {
+        return key.midi;
+      }
+    }
+    return null;
+  }
+
+  function onPointerDown(e: PointerEvent) {
+    dragging = true;
+    svgEl?.setPointerCapture(e.pointerId);
+    const midi = midiFromPointer(e);
+    if (midi !== null) onkeyclick?.(midi);
+  }
+
+  function onPointerMove(e: PointerEvent) {
+    if (!dragging) return;
+    const midi = midiFromPointer(e);
+    if (midi !== null) onkeyclick?.(midi);
+  }
+
+  function onPointerUp(e: PointerEvent) {
+    dragging = false;
+    svgEl?.releasePointerCapture(e.pointerId);
+  }
 </script>
 
 <svg
   class="piano-keyboard"
+  bind:this={svgEl}
   viewBox="0 0 {svgWidth} {WHITE_KEY_HEIGHT}"
   preserveAspectRatio="xMidYMid meet"
   role="group"
   aria-label="Piano keyboard"
+  style="touch-action: none;"
+  onpointerdown={onPointerDown}
+  onpointermove={onPointerMove}
+  onpointerup={onPointerUp}
+  onpointercancel={onPointerUp}
 >
   <!-- White keys (rendered first, below black keys) -->
   {#each whiteKeys as key (key.midi)}
@@ -141,7 +194,6 @@
       rx="2"
       role="button"
       aria-label="Piano key MIDI {key.midi}"
-      onclick={() => onkeyclick?.(key.midi)}
       style="cursor: pointer;"
     />
     {#if showLabels && midiToLabel.has(key.midi)}
@@ -169,7 +221,6 @@
       rx="2"
       role="button"
       aria-label="Piano key MIDI {key.midi}"
-      onclick={() => onkeyclick?.(key.midi)}
       style="cursor: pointer;"
     />
     {#if showLabels && midiToLabel.has(key.midi)}

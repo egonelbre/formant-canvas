@@ -18,6 +18,10 @@ describe('QWERTY_MAP', () => {
     expect(QWERTY_MAP['KeyS']).toBe(49);
   });
 
+  it('KeyV maps to MIDI 53 (F3)', () => {
+    expect(QWERTY_MAP['KeyV']).toBe(53);
+  });
+
   it('KeyM maps to MIDI 59 (B3)', () => {
     expect(QWERTY_MAP['KeyM']).toBe(59);
   });
@@ -30,12 +34,12 @@ describe('QWERTY_MAP', () => {
     expect(QWERTY_MAP['Digit2']).toBe(61);
   });
 
-  it('Digit6 maps to MIDI 69 (A4)', () => {
-    expect(QWERTY_MAP['Digit6']).toBe(69);
+  it('KeyY maps to MIDI 69 (A4)', () => {
+    expect(QWERTY_MAP['KeyY']).toBe(69);
   });
 
-  it('Digit7 maps to MIDI 71 (B4)', () => {
-    expect(QWERTY_MAP['Digit7']).toBe(71);
+  it('KeyU maps to MIDI 71 (B4)', () => {
+    expect(QWERTY_MAP['KeyU']).toBe(71);
   });
 
   it('has no duplicate MIDI values', () => {
@@ -45,7 +49,7 @@ describe('QWERTY_MAP', () => {
   });
 
   it('lower row covers C3-B3 (MIDI 48-59)', () => {
-    const lowerRow = ['KeyZ', 'KeyS', 'KeyX', 'KeyD', 'KeyC', 'KeyF', 'KeyV', 'KeyG', 'KeyB', 'KeyN', 'KeyJ', 'KeyM'];
+    const lowerRow = ['KeyZ', 'KeyS', 'KeyX', 'KeyD', 'KeyC', 'KeyV', 'KeyG', 'KeyB', 'KeyH', 'KeyN', 'KeyJ', 'KeyM'];
     for (const key of lowerRow) {
       expect(QWERTY_MAP[key], `${key}`).toBeGreaterThanOrEqual(48);
       expect(QWERTY_MAP[key], `${key}`).toBeLessThanOrEqual(59);
@@ -53,7 +57,7 @@ describe('QWERTY_MAP', () => {
   });
 
   it('upper row covers C4-B4 (MIDI 60-71)', () => {
-    const upperRow = ['KeyQ', 'Digit2', 'KeyW', 'Digit3', 'KeyE', 'Digit4', 'KeyR', 'Digit5', 'KeyT', 'Digit6', 'KeyY', 'Digit7'];
+    const upperRow = ['KeyQ', 'Digit2', 'KeyW', 'Digit3', 'KeyE', 'KeyR', 'Digit5', 'KeyT', 'Digit6', 'KeyY', 'Digit7', 'KeyU'];
     for (const key of upperRow) {
       expect(QWERTY_MAP[key], `${key}`).toBeGreaterThanOrEqual(60);
       expect(QWERTY_MAP[key], `${key}`).toBeLessThanOrEqual(71);
