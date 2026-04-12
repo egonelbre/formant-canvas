@@ -30,7 +30,7 @@ export const TOOLTIPS: Record<string, { text: string; expert?: string }> = {
     expert: 'F1 (vertical) and F2 (horizontal) in Hz. Ellipses show Hillenbrand (1995) population data.',
   },
   strategy: {
-    text: 'Singing strategies align your formant frequencies with harmonics of your pitch. Sopranos and tenors use this to project over an orchestra.',
+    text: 'Singing strategies align your formant frequencies with harmonics of your pitch. Trained singers use this to project over an orchestra.',
     expert: 'R1:nf0 means first resonance tracks the nth harmonic. Locked mode auto-tunes; overlay shows targets only.',
   },
 };

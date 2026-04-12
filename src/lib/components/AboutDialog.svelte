@@ -45,7 +45,7 @@
         <li><strong>No vocal tract geometry.</strong> Formants are independent frequency knobs &mdash; you can dial in combinations no human vocal tract could produce.</li>
         <li><strong>Simplified source signal.</strong> The glottal pulse is a mathematical approximation that doesn't capture the full biomechanical variation of real vocal folds.</li>
         <li><strong>No nasal or lateral coupling.</strong> Sounds like /m/, /n/, /l/ involve anti-resonances the model doesn't have.</li>
-        <li><strong>No turbulence noise.</strong> Fricatives and breathy voice involve aerodynamic noise sources not modeled here.</li>
+        <li><strong>Simplified noise model.</strong> Only basic aspiration noise is included; fricative and turbulence noise sources are not modeled.</li>
         <li><strong>No source-tract interaction.</strong> In a real voice, vocal tract resonances feed back into the vocal folds. This nonlinear coupling affects amplitude, pitch stability, and timbre. The model treats source and filter as a one-way chain.</li>
       </ul>
       <p>

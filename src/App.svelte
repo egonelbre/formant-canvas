@@ -184,7 +184,7 @@
             </p>
             <p>
               R1 through R4 correspond to the first four resonances of the vocal tract. R1 and R2
-              primarily determine vowel quality, while R3--R5 contribute to voice timbre and the
+              primarily determine vowel quality, while R3 and R4 contribute to voice timbre and the
               singer's formant cluster.
             </p>
             <p>
@@ -312,9 +312,9 @@
         </p>
         <p>
           When R2 aligns with a harmonic (sits on a diagonal line), the voice gains significant
-          energy at that frequency. R2 strategies are particularly important for <strong>tenors</strong>
-          and for producing the <strong>singer's formant cluster</strong> -- the concentration of
-          energy around 2500--3500 Hz that lets a trained voice project over an orchestra.
+          energy at that frequency. R2 strategies are important for <strong>vowel modification</strong>
+          -- singers adjust R2 to maintain intelligibility and projection as pitch changes, especially
+          in the upper range where vowels naturally converge.
         </p>
         <p>
           The <strong>shaded region</strong> shows the typical R2 range for the selected voice type.
@@ -345,7 +345,7 @@
         </p>
         <p>
           The <strong>shaded region</strong> shows the typical R1 range for the selected voice type.
-          Sopranos often tune R1 above the first harmonic (<strong>R1:f0</strong> or
+          Sopranos often tune R1 to the first or second harmonic (<strong>R1:f0</strong> or
           <strong>R1:2f0</strong>) in their upper range -- this is the acoustic basis of
           <strong>vowel modification</strong>, where singers subtly change their vowel to maintain
           resonance alignment at high pitches.
