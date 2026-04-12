@@ -222,28 +222,35 @@
     flex-direction: column;
     gap: var(--spacing-sm);
     padding: var(--spacing-sm);
-    overflow-y: auto;
-    overflow-x: hidden;
+    overflow: hidden;
     min-width: 0;
     min-height: 0;
   }
   .panel-controls {
     flex: 0 0 220px;
     border-right: 1px solid var(--color-border);
+    overflow-y: auto;
   }
   .panel-charts {
     flex: 1 1 auto;
-    align-items: center;
+    overflow: hidden;
+    justify-content: stretch;
+  }
+  .panel-charts > :global(.vowel-chart-section) {
+    flex: 1 1 auto;
+    min-height: 0;
   }
   .strategy-pair {
     display: flex;
     gap: var(--spacing-sm);
     width: 100%;
-    min-height: 0;
+    flex: 0 0 auto;
+    height: 5cm;
   }
   .strategy-pair > :global(*) {
     flex: 1;
     min-width: 0;
+    height: 100%;
   }
   .control-group {
     display: flex;
