@@ -46,23 +46,17 @@
     voiceParams.singerFormant = rec.singerFormant;
   }
 
-  let isSpeech = $derived(
-    !voiceParams.autoStrategy &&
-    voiceParams.r1Strategy === null &&
-    voiceParams.r2Strategy === null &&
-    !voiceParams.singerFormant
-  );
 </script>
 
 <section class="strategy-section">
   {#if section === 'all' || section === 'mode'}
     <h2 class="section-heading">Strategy</h2>
     <div class="option-list">
-      <button class="option" class:active={isSpeech} onclick={selectSpeech}>
-        Speech
+      <button class="option clear-btn" onclick={selectSpeech}>
+        Clear
       </button>
-      <button class="option" class:active={voiceParams.strategyMode === 'off' && !isSpeech && !voiceParams.autoStrategy} onclick={() => selectMode('off')}>
-        Off
+      <button class="option" class:active={voiceParams.strategyMode === 'off' && !voiceParams.autoStrategy} onclick={() => selectMode('off')}>
+        Manual
       </button>
       <button class="option" class:active={voiceParams.strategyMode === 'overlay' && !voiceParams.autoStrategy} onclick={() => selectMode('overlay')}>
         Overlay
@@ -159,5 +153,11 @@
   .option.active {
     background: var(--color-accent);
     color: #fff;
+  }
+
+  .clear-btn {
+    color: var(--color-text-secondary);
+    font-weight: 400;
+    font-size: 11px;
   }
 </style>
