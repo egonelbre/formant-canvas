@@ -1,19 +1,19 @@
-import { scaleLinear } from 'd3-scale';
+import { scaleLog } from 'd3-scale';
 
 /**
- * Create a linear scale mapping pitch Hz to pixel X coordinates.
- * Sundberg reference charts use linear axes (not log).
+ * Create a log scale mapping pitch Hz to pixel X coordinates.
+ * Log scale is more intuitive — equal musical intervals get equal space.
  */
 export function createPitchScale(minHz: number, maxHz: number, widthPx: number) {
-  return scaleLinear().domain([minHz, maxHz]).range([0, widthPx]);
+  return scaleLog().domain([minHz, maxHz]).range([0, widthPx]);
 }
 
 /**
- * Create a linear scale mapping frequency Hz to pixel Y coordinates.
+ * Create a log scale mapping frequency Hz to pixel Y coordinates.
  * Inverted range for SVG coordinate system (0 = top).
  */
 export function createFreqScale(minHz: number, maxHz: number, heightPx: number) {
-  return scaleLinear().domain([minHz, maxHz]).range([heightPx, 0]);
+  return scaleLog().domain([minHz, maxHz]).range([heightPx, 0]);
 }
 
 /**

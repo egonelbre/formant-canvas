@@ -181,7 +181,7 @@
       <RegionHelp text={HELP.vowelChart} />
       <VowelChart {expertMode} />
     </div>
-    <div class="right-chart">
+    <div class="right-chart right-r2">
       <RegionHelp text={HELP.r2Chart} />
       <R2StrategyChart
         f0={voiceParams.f0}
@@ -191,7 +191,7 @@
         voicePreset={voiceParams.voicePreset}
       />
     </div>
-    <div class="right-chart">
+    <div class="right-chart right-r1">
       <RegionHelp text={HELP.r1Chart} />
       <R1StrategyChart
         f0={voiceParams.f0}
@@ -274,7 +274,8 @@
     grid-area: right;
     position: relative;
     display: grid;
-    grid-template-rows: 1fr 1fr 1fr;
+    /* Heights proportional to octave span: vowel ~2.3oct, R2 ~2.3oct, R1 ~2.6oct */
+    grid-template-rows: 2.3fr 2.3fr 2.6fr;
     grid-template-areas:
       "vowels"
       "r2resonance"
@@ -300,10 +301,10 @@
     min-height: 0;
     border-top: 1px solid var(--color-border);
   }
-  .right-chart:nth-child(3) {
+  .right-r2 {
     grid-area: r2resonance;
   }
-  .right-chart:nth-child(4) {
+  .right-r1 {
     grid-area: r1resonance;
   }
   .expert-formant-bw {
