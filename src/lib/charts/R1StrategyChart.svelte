@@ -166,7 +166,7 @@
         width={plotWidth}
         height={yScale(formantRange.min) - yScale(formantRange.max)}
         fill="var(--color-f1)"
-        opacity="0.15"
+        opacity="0.25"
       />
     {/if}
 
