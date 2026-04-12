@@ -14,6 +14,7 @@
   import R1StrategyChart from './lib/charts/R1StrategyChart.svelte';
   import R2StrategyChart from './lib/charts/R2StrategyChart.svelte';
   import VibratoVisual from './lib/components/VibratoVisual.svelte';
+  import LabeledSlider from './lib/components/LabeledSlider.svelte';
   import RegionHelp from './lib/components/RegionHelp.svelte';
   import { computeTargets } from './lib/strategies/engine.ts';
   import { pickStrategy } from './lib/strategies/auto-strategy.ts';
@@ -131,6 +132,22 @@
       <PitchSection {expertMode} />
       <ExpressionControls {expertMode} />
       <VibratoVisual rate={voiceParams.vibratoRate} extent={voiceParams.vibratoExtent} />
+      {#if expertMode}
+        <div class="expert-formant-bw">
+          <LabeledSlider label="R1 BW" min={30} max={200} step={1}
+            value={voiceParams.f1BW} unit="Hz" decimals={0}
+            onchange={(v) => { voiceParams.f1BW = v; }} />
+          <LabeledSlider label="R2 BW" min={30} max={250} step={1}
+            value={voiceParams.f2BW} unit="Hz" decimals={0}
+            onchange={(v) => { voiceParams.f2BW = v; }} />
+          <LabeledSlider label="R3 BW" min={50} max={300} step={1}
+            value={voiceParams.f3BW} unit="Hz" decimals={0}
+            onchange={(v) => { voiceParams.f3BW = v; }} />
+          <LabeledSlider label="R4 BW" min={50} max={500} step={1}
+            value={voiceParams.f4BW} unit="Hz" decimals={0}
+            onchange={(v) => { voiceParams.f4BW = v; }} />
+        </div>
+      {/if}
     </div>
     <div class="panel-col">
       <PhonationMode {expertMode} />
@@ -270,5 +287,10 @@
   }
   .right-chart:nth-child(4) {
     grid-area: r1resonance;
+  }
+  .expert-formant-bw {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
   }
 </style>

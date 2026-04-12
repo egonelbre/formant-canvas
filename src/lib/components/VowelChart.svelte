@@ -4,7 +4,6 @@
   import { HILLENBRAND_VOWELS, getActiveVowelRegion, interpolateHigherFormants } from '../data/hillenbrand.ts';
   import type { SpeakerGroup, HillenbrandVowel } from '../data/hillenbrand.ts';
   import { voiceParams } from '../audio/state.svelte.ts';
-  import LabeledSlider from './LabeledSlider.svelte';
   import StrategyOverlayVowel from './StrategyOverlayVowel.svelte';
 
   interface Props {
@@ -246,22 +245,6 @@
     </g>
   </svg>
 
-  {#if expertMode}
-    <div class="expert-formant-params">
-      <LabeledSlider label="F1 BW" min={30} max={200} step={1}
-        value={voiceParams.f1BW} unit="Hz" decimals={0}
-        onchange={(v) => { voiceParams.f1BW = v; }} />
-      <LabeledSlider label="F2 BW" min={30} max={250} step={1}
-        value={voiceParams.f2BW} unit="Hz" decimals={0}
-        onchange={(v) => { voiceParams.f2BW = v; }} />
-      <LabeledSlider label="F3 BW" min={50} max={300} step={1}
-        value={voiceParams.f3BW} unit="Hz" decimals={0}
-        onchange={(v) => { voiceParams.f3BW = v; }} />
-      <LabeledSlider label="F4 BW" min={50} max={500} step={1}
-        value={voiceParams.f4BW} unit="Hz" decimals={0}
-        onchange={(v) => { voiceParams.f4BW = v; }} />
-    </div>
-  {/if}
 </div>
 
 <style>
@@ -293,10 +276,4 @@
     color: var(--color-text-secondary);
   }
 
-  .expert-formant-params {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--spacing-sm, 8px);
-    padding: var(--spacing-sm, 8px);
-  }
 </style>
