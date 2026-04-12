@@ -135,6 +135,7 @@
     voiceParams.f2Freq = data.f2;
     voiceParams.f3Freq = data.f3;
     voiceParams.f4Freq = Math.round(data.f3 * 1.25); // estimate F4 from F3
+    voiceParams.f5Freq = Math.round(data.f3 * 1.6);  // rough F5 estimate
   }
 
   function onOverlaySelect(key: string) {
