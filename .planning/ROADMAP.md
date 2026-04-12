@@ -90,7 +90,7 @@ Plans:
 - [x] 04-01-PLAN.md — TDD: Strategy engine pure functions (types, definitions, computeTargets, auto-strategy)
 - [x] 04-02-PLAN.md — VoiceParams F5 extension + AudioBridge F5 + strategy state fields
 - [x] 04-03-PLAN.md — Strategy panel UI + overlay components + locked mode + drag override
-- [ ] 04-04-PLAN.md — Human verification of complete vocal strategy system
+- [x] 04-04-PLAN.md — Human verification of complete vocal strategy system
 **UI hint**: yes
 
 ### Phase 5: Presets, Sharing, Undo/Redo
