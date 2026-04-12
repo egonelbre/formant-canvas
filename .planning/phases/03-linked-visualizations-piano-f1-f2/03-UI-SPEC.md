@@ -114,6 +114,8 @@ CSS custom properties to add to `:root`:
 
 The app layout expands from the Phase 2 single-column (600px max) to a wider layout accommodating the visualizations. The new layout is a single column, max-width 960px, centered. The existing control sections from Phase 2 remain below the new visualization sections.
 
+Primary focal point: F1/F2 drag handle (accent circle) -- the main interactive element users manipulate to explore vowel space.
+
 ### Section Order (top to bottom)
 
 1. **Transport** (existing, unchanged)
@@ -160,7 +162,7 @@ The app layout expands from the Phase 2 single-column (600px max) to a wider lay
 
 ### Section 3: F1/F2 Vowel Chart (NEW)
 
-**Dimensions:** 480px x 400px SVG, centered within the 960px column. Chart plot area has 48px left margin (Y-axis labels), 24px right margin, 32px top margin, 40px bottom margin (X-axis labels + citation).
+**Dimensions:** 480px x 400px SVG, centered within the 960px column. Chart plot area has 48px left margin (Y-axis labels), 24px right margin, 32px top margin, 48px bottom margin (X-axis labels + citation).
 
 **Axes (D-01, D-02):**
 - X-axis: F2 in Hz, increasing rightward. Log scale via `d3-scale` `scaleLog()`. Range: 600 Hz to 3000 Hz.
