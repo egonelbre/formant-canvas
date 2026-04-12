@@ -158,8 +158,10 @@ export class AudioBridge {
    * Start audio playback. Ensures context is resumed first.
    */
   async start(): Promise<void> {
-    if (!this.ctx) throw new Error('AudioBridge not initialized');
+    if (!this.ctx || !this.masterGain) throw new Error('AudioBridge not initialized');
     await this.resume();
+    // Cancel any in-flight stop ramp before restoring gain (WR-03)
+    this.masterGain.gain.cancelScheduledValues(this.ctx.currentTime);
     // syncParams to ensure current state is applied
     this.syncParams();
   }
