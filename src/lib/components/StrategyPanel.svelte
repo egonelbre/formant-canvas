@@ -61,7 +61,7 @@
       <button class="option" class:active={voiceParams.strategyMode === 'overlay' && !voiceParams.autoStrategy} onclick={() => selectMode('overlay')}>
         Overlay
       </button>
-      <button class="option" class:active={voiceParams.strategyMode === 'locked' && !voiceParams.autoStrategy} onclick={() => selectMode('locked')}>
+      <button class="option" class:active={voiceParams.strategyMode === 'locked' && !voiceParams.autoStrategy} onclick={() => selectMode('locked')} title="Formants auto-tune to match pitch. Drag to override temporarily — snaps back on release.">
         Locked
       </button>
       <button class="option" class:active={voiceParams.autoStrategy} onclick={selectAuto}>

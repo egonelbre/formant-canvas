@@ -18,6 +18,10 @@
   import RegionHelp from './lib/components/RegionHelp.svelte';
   import { computeTargets } from './lib/strategies/engine.ts';
   import { pickStrategy } from './lib/strategies/auto-strategy.ts';
+  import { VOICE_PRESETS } from './lib/data/voice-presets.ts';
+
+  /** Track which formants the strategy was controlling last tick */
+  let prevStrategyTargets = { f1: false, f2: false, f3: false, f4: false, f5: false };
 
   let expertMode = $state(localStorage.getItem('expertMode') === 'true');
 
@@ -50,16 +54,44 @@
     const preset = voiceParams.voicePreset;
 
     if (mode !== 'locked' || overriding) return;
-    if (!r1 && !r2 && !sf) return;
+    if (!r1 && !r2 && !sf) {
+      // All strategies cleared — restore any previously controlled formants
+      const defaults = VOICE_PRESETS[preset ?? 'baritone'];
+      if (prevStrategyTargets.f1) voiceParams.f1Freq = defaults.f1;
+      if (prevStrategyTargets.f2) voiceParams.f2Freq = defaults.f2;
+      if (prevStrategyTargets.f3) voiceParams.f3Freq = defaults.f3;
+      if (prevStrategyTargets.f4) voiceParams.f4Freq = defaults.f4;
+      if (prevStrategyTargets.f5) voiceParams.f5Freq = Math.round(defaults.f4 * 1.2);
+      prevStrategyTargets = { f1: false, f2: false, f3: false, f4: false, f5: false };
+      return;
+    }
 
     const result = computeTargets(r1, r2, sf, f0, preset ?? 'baritone');
     const t = result.targets;
+    const defaults = VOICE_PRESETS[preset ?? 'baritone'];
 
+    // Restore formants that strategy just released to voice preset defaults
+    if (t.f1 === null && prevStrategyTargets.f1) voiceParams.f1Freq = defaults.f1;
+    if (t.f2 === null && prevStrategyTargets.f2) voiceParams.f2Freq = defaults.f2;
+    if (t.f3 === null && prevStrategyTargets.f3) voiceParams.f3Freq = defaults.f3;
+    if (t.f4 === null && prevStrategyTargets.f4) voiceParams.f4Freq = defaults.f4;
+    if (t.f5 === null && prevStrategyTargets.f5) voiceParams.f5Freq = Math.round(defaults.f4 * 1.2);
+
+    // Apply active strategy targets
     if (t.f1 !== null) voiceParams.f1Freq = t.f1;
     if (t.f2 !== null) voiceParams.f2Freq = t.f2;
     if (t.f3 !== null) voiceParams.f3Freq = t.f3;
     if (t.f4 !== null) voiceParams.f4Freq = t.f4;
     if (t.f5 !== null) voiceParams.f5Freq = t.f5;
+
+    // Track what's being controlled for next tick
+    prevStrategyTargets = {
+      f1: t.f1 !== null,
+      f2: t.f2 !== null,
+      f3: t.f3 !== null,
+      f4: t.f4 !== null,
+      f5: t.f5 !== null,
+    };
   });
 
   $effect(() => {
