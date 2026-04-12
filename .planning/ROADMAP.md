@@ -32,9 +32,9 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. A single Svelte 5 `$state` store holds all audio parameters; the AudioBridge forwards changes via `setTargetAtTime` and no component owns its own copy of parameter state
 **Plans:** 3 plans
 Plans:
-- [ ] 01-01-PLAN.md — Scaffold project + VoiceParams store + DSP pure functions with tests
-- [ ] 01-02-PLAN.md — AudioWorklet glottal processor + AudioBridge with parallel formant chain
-- [ ] 01-03-PLAN.md — Minimal UI (play/pause, vowel slider, volume slider) + human verification
+- [x] 01-01-PLAN.md — Scaffold project + VoiceParams store + DSP pure functions with tests
+- [x] 01-02-PLAN.md — AudioWorklet glottal processor + AudioBridge with parallel formant chain
+- [x] 01-03-PLAN.md — Minimal UI (play/pause, vowel slider, volume slider) + human verification
 **UI hint**: no
 
 ### Phase 2: Voice Controls & Expression
