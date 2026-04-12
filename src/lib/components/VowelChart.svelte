@@ -156,28 +156,32 @@
         />
       {/each}
 
-      <!-- Inside axis labels: F2 along bottom edge -->
-      {#each f2Ticks as tick}
-        <text
-          x={f2Scale(tick)} y={PLOT_HEIGHT - 4}
-          text-anchor="middle" font-size="10" fill="var(--color-text-secondary)" opacity="0.6"
-        >{tick}</text>
+      <!-- Inside axis labels: F2 along bottom edge, skip first to avoid corner overlap -->
+      {#each f2Ticks as tick, i}
+        {#if i > 0}
+          <text
+            x={f2Scale(tick)} y={PLOT_HEIGHT - 4}
+            text-anchor="middle" font-size="10" fill="var(--color-text-secondary)" opacity="0.6"
+          >{tick}</text>
+        {/if}
       {/each}
       <text
         x={PLOT_WIDTH - 2} y={PLOT_HEIGHT - 16}
         text-anchor="end" font-size="10" font-weight="600" fill="var(--color-text-secondary)" opacity="0.5"
       >F2 Hz</text>
 
-      <!-- Inside axis labels: F1 along left edge -->
-      {#each f1Ticks as tick}
-        <text
-          x={4} y={f1Scale(tick) - 3}
-          text-anchor="start" font-size="10" fill="var(--color-text-secondary)" opacity="0.6"
-        >{tick}</text>
+      <!-- Inside axis labels: F1 along right edge, skip last (bottom) to avoid corner overlap -->
+      {#each f1Ticks as tick, i}
+        {#if i < f1Ticks.length - 1}
+          <text
+            x={PLOT_WIDTH - 4} y={f1Scale(tick) + 4}
+            text-anchor="end" font-size="10" fill="var(--color-text-secondary)" opacity="0.6"
+          >{tick}</text>
+        {/if}
       {/each}
       <text
-        x={4} y={14}
-        text-anchor="start" font-size="10" font-weight="600" fill="var(--color-text-secondary)" opacity="0.5"
+        x={PLOT_WIDTH - 4} y={14}
+        text-anchor="end" font-size="10" font-weight="600" fill="var(--color-text-secondary)" opacity="0.5"
       >F1 Hz</text>
 
       <!-- Hillenbrand ellipses -->
