@@ -83,8 +83,9 @@
     return centers;
   });
 
-  // Pixels per semitone
-  let pxPerSemitone = $derived(svgWidth / (END_MIDI - START_MIDI));
+  // Pixels per semitone: svgWidth covers only white keys, so adjust for
+  // the total semitone span (12 semitones per 7 white keys)
+  let pxPerSemitone = $derived(svgWidth / (whiteKeys.length * (12 / 7)));
 
   /**
    * Convert a frequency in Hz to SVG x coordinate.
