@@ -12,12 +12,13 @@
 
   // Layout constants
   const WHITE_KEY_WIDTH = 14;
-  const WHITE_KEY_HEIGHT = 120;
+  const WHITE_KEY_HEIGHT = 48;
   const BLACK_KEY_WIDTH = 9;
-  const BLACK_KEY_HEIGHT = 52;
-  const HARMONIC_REGION_HEIGHT = 80;
-  const BAR_REGION_HEIGHT = 72; // 80px minus 8px top margin
-  const SVG_HEIGHT = HARMONIC_REGION_HEIGHT + WHITE_KEY_HEIGHT; // 200
+  const BLACK_KEY_HEIGHT = 28;
+  const LABEL_PADDING = 14; // space above harmonics for R1/R2/f0 labels
+  const HARMONIC_REGION_HEIGHT = 140;
+  const BAR_REGION_HEIGHT = HARMONIC_REGION_HEIGHT - LABEL_PADDING;
+  const SVG_HEIGHT = LABEL_PADDING + HARMONIC_REGION_HEIGHT + WHITE_KEY_HEIGHT;
 
   // Black key classification: MIDI % 12 in [1,3,6,8,10]
   const BLACK_NOTE_INDICES = new Set([1, 3, 6, 8, 10]);
@@ -190,8 +191,8 @@
   }
 
   function midiFromSvgX(svgX: number, svgY: number): number | null {
-    if (svgY < HARMONIC_REGION_HEIGHT) return null;
-    const keyY = svgY - HARMONIC_REGION_HEIGHT;
+    if (svgY < LABEL_PADDING + HARMONIC_REGION_HEIGHT) return null;
+    const keyY = svgY - LABEL_PADDING - HARMONIC_REGION_HEIGHT;
 
     // Check black keys first (they're on top)
     if (keyY < BLACK_KEY_HEIGHT) {
@@ -275,14 +276,14 @@
     onpointerup={onPointerUp}
     onpointercancel={onPointerUp}
   >
-    <!-- Harmonic bars region (0-80px) -->
-    <HarmonicBars {freqToX} barRegionHeight={BAR_REGION_HEIGHT} regionBottom={HARMONIC_REGION_HEIGHT} />
+    <!-- Harmonic bars region -->
+    <HarmonicBars {freqToX} barRegionHeight={BAR_REGION_HEIGHT} regionBottom={LABEL_PADDING + HARMONIC_REGION_HEIGHT} />
 
-    <!-- Formant curves region (0-80px, on top of bars) -->
-    <FormantCurves {freqToX} curveRegionHeight={BAR_REGION_HEIGHT} regionBottom={HARMONIC_REGION_HEIGHT} />
+    <!-- Formant curves region -->
+    <FormantCurves {freqToX} curveRegionHeight={BAR_REGION_HEIGHT} regionBottom={LABEL_PADDING + HARMONIC_REGION_HEIGHT} />
 
-    <!-- Strategy target overlay (D-07) -->
-    <StrategyOverlayPiano {freqToX} harmonicRegionHeight={HARMONIC_REGION_HEIGHT} svgHeight={SVG_HEIGHT} />
+    <!-- Strategy target overlay -->
+    <StrategyOverlayPiano {freqToX} harmonicRegionHeight={LABEL_PADDING + HARMONIC_REGION_HEIGHT} svgHeight={SVG_HEIGHT} />
 
     <!-- Formant range band (shown during formant drag) -->
     {#if dragMode === 'formant' && dragFormantIndex >= 0}
@@ -314,16 +315,16 @@
       x={0}
       y={0}
       width={svgWidth}
-      height={HARMONIC_REGION_HEIGHT}
+      height={LABEL_PADDING + HARMONIC_REGION_HEIGHT}
       fill="transparent"
       style="cursor: ew-resize;"
     />
 
-    <!-- White keys (bottom 120px, starting at y=80) -->
+    <!-- White keys -->
     {#each whiteKeys as key (key.midi)}
       <rect
         x={key.x}
-        y={HARMONIC_REGION_HEIGHT}
+        y={LABEL_PADDING + HARMONIC_REGION_HEIGHT}
         width={WHITE_KEY_WIDTH}
         height={WHITE_KEY_HEIGHT}
         fill={getWhiteKeyFill(key.midi)}
@@ -337,7 +338,7 @@
     {#each blackKeys as key (key.midi)}
       <rect
         x={key.x}
-        y={HARMONIC_REGION_HEIGHT}
+        y={LABEL_PADDING + HARMONIC_REGION_HEIGHT}
         width={BLACK_KEY_WIDTH}
         height={BLACK_KEY_HEIGHT}
         fill={getBlackKeyFill(key.midi)}
@@ -353,7 +354,7 @@
       {#if wk}
         <text
           x={wk.x + WHITE_KEY_WIDTH / 2}
-          y={198}
+          y={SVG_HEIGHT - 2}
           text-anchor="middle"
           font-size="11"
           fill="#777777"
