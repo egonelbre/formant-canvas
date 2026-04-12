@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-04-12)
 
 Milestone: v0.1 shipped
 Status: Complete — ready for next milestone
-Last activity: 2026-04-12 - Completed quick task 260412-tr2: Add a README describing the project and purpose
+Last activity: 2026-04-12 - Completed quick task 260412-u6j: Convert tooltips into proper help dialogs
 
 Progress: [##########] 100%
 
@@ -53,6 +53,7 @@ Carried forward for next milestone planning:
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260412-tr2 | Add a README describing the project and purpose | 2026-04-12 | 24c483b | [260412-tr2-add-a-readme-describing-the-project-and-](./quick/260412-tr2-add-a-readme-describing-the-project-and-/) |
+| 260412-u6j | Convert question mark tooltips into proper dialogs with fuller explanations | 2026-04-12 | d065595 | [260412-u6j-convert-question-mark-tooltips-into-prop](./quick/260412-u6j-convert-question-mark-tooltips-into-prop/) |
 
 ## Session Continuity
 
