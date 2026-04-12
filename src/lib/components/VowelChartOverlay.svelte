@@ -16,8 +16,8 @@
   function convexHull(points: { x: number; y: number }[]): { x: number; y: number }[] {
     if (points.length < 3) return [...points];
 
-    // Find the bottom-most (highest y) point, then leftmost
-    const sorted = [...points].sort((a, b) => a.y - b.y || a.x - b.x);
+    // Find the bottom-most point (highest SVG y), then leftmost
+    const sorted = [...points].sort((a, b) => b.y - a.y || a.x - b.x);
     const pivot = sorted[0];
 
     // Sort by polar angle relative to pivot
