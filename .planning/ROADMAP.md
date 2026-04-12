@@ -85,7 +85,12 @@ Plans:
   2. In overlay mode, user can see target lines or points drawn on the piano and F1/F2 chart while tuning manually, with audio unchanged by the overlay itself
   3. In locked mode, user can move f₀ up and down and see and hear the relevant formant(s) auto-tune to maintain the ratio, including outside the strategy's applicable range where the app visibly indicates "out of range" or blends toward the neutral target
   4. When a strategy is locked and the user drags a locked formant directly on the F1/F2 chart, the app responds consistently and predictably (drag is blocked with visible feedback or the strategy unlocks) and the rule is documented in-app
-**Plans**: TBD
+**Plans:** 4 plans
+Plans:
+- [ ] 04-01-PLAN.md — TDD: Strategy engine pure functions (types, definitions, computeTargets, auto-strategy)
+- [ ] 04-02-PLAN.md — VoiceParams F5 extension + AudioBridge F5 + strategy state fields
+- [ ] 04-03-PLAN.md — Strategy panel UI + overlay components + locked mode + drag override
+- [ ] 04-04-PLAN.md — Human verification of complete vocal strategy system
 **UI hint**: yes
 
 ### Phase 5: Presets, Sharing, Undo/Redo
@@ -121,7 +126,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 1. Audio Closed Loop | 3/3 | Complete | 2026-04-12 |
 | 2. Voice Controls & Expression | 0/6 | Planning complete | - |
 | 3. Linked Visualizations | 0/4 | Planning complete | - |
-| 4. Vocal Strategies | 0/TBD | Not started | - |
+| 4. Vocal Strategies | 0/4 | Planning complete | - |
 | 5. Presets, Sharing, Undo/Redo | 0/TBD | Not started | - |
 | 6. Pedagogy UI & Polish | 0/TBD | Not started | - |
 
