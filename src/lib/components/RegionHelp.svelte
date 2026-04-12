@@ -70,16 +70,19 @@
       }
     }
 
+    function handleResize() { open = false; }
+
     const timer = setTimeout(() => {
       document.addEventListener('click', handleClickOutside);
     }, 0);
     document.addEventListener('tooltipopen', handleOtherOpen);
-    window.addEventListener('resize', () => { open = false; });
+    window.addEventListener('resize', handleResize);
 
     return () => {
       clearTimeout(timer);
       document.removeEventListener('click', handleClickOutside);
       document.removeEventListener('tooltipopen', handleOtherOpen);
+      window.removeEventListener('resize', handleResize);
     };
   });
 </script>
