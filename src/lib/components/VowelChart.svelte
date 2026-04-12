@@ -156,19 +156,21 @@
         />
       {/each}
 
-      <!-- Inside axis labels: F2 along bottom edge -->
+      <!-- Inside axis labels: F2 along bottom, skip 600 (shown in corner) -->
       {#each f2Ticks as tick}
-        <text
-          x={f2Scale(tick)} y={PLOT_HEIGHT - 4}
-          text-anchor="middle" font-size="10" fill="var(--color-text-secondary)" opacity="0.6"
-        >{tick}</text>
+        {#if tick !== 600}
+          <text
+            x={f2Scale(tick)} y={PLOT_HEIGHT - 4}
+            text-anchor="middle" font-size="10" fill="var(--color-text-secondary)" opacity="0.6"
+          >{tick}</text>
+        {/if}
       {/each}
       <text
         x={PLOT_WIDTH - 2} y={PLOT_HEIGHT - 16}
         text-anchor="end" font-size="10" font-weight="600" fill="var(--color-text-secondary)" opacity="0.5"
       >F2 Hz</text>
 
-      <!-- Inside axis labels: F1 along left edge, skip 200 (overlaps with F2 600 in corner) -->
+      <!-- Inside axis labels: F1 along left, skip 200 (shown in corner) -->
       {#each f1Ticks as tick}
         {#if tick !== 200}
           <text
@@ -181,6 +183,12 @@
         x={4} y={14}
         text-anchor="start" font-size="10" font-weight="600" fill="var(--color-text-secondary)" opacity="0.5"
       >F1 Hz</text>
+
+      <!-- Combined corner label for F1=200 / F2=600 -->
+      <text
+        x={4} y={PLOT_HEIGHT - 4}
+        text-anchor="start" font-size="10" fill="var(--color-text-secondary)" opacity="0.6"
+      >200/600</text>
 
       <!-- Hillenbrand ellipses -->
       {#each HILLENBRAND_VOWELS as vowel (vowel.ipa)}
