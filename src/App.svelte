@@ -23,10 +23,8 @@
   const bridge = new AudioBridge();
   let bridgeInitialized = $state(false);
 
-  // Track pressed QWERTY keys (still used for keyboard-driven f0 changes)
   let pressedKeys = $state(new Set<string>());
 
-  // Auto-strategy: reactively update strategy selections as f0/voiceType change
   $effect(() => {
     if (!voiceParams.autoStrategy) return;
     const f0 = voiceParams.f0;
@@ -37,7 +35,6 @@
     voiceParams.singerFormant = rec.singerFormant;
   });
 
-  // Strategy locked-mode: auto-tune formants to maintain ratio
   $effect(() => {
     const mode = voiceParams.strategyMode;
     const r1 = voiceParams.r1Strategy;
@@ -60,7 +57,6 @@
     if (t.f5 !== null) voiceParams.f5Freq = t.f5;
   });
 
-  // Forward ALL voiceParams changes to audio graph
   $effect(() => {
     void voiceParams.snapshot;
     bridge.syncParams();
@@ -107,18 +103,16 @@
     }
   }
 
-  // Region help descriptions
   const HELP = {
-    controls: 'Controls for voice type, phonation style, vibrato, and vocal strategy. Voice presets set formant frequencies for different singer types. Phonation controls how the vocal folds vibrate. Strategy controls how formants track pitch.',
-    vowelChart: 'The vowel space chart shows F1 (openness) vs F2 (frontness). Drag the dot to change the vowel sound. Click IPA symbols to snap to standard vowels. The position determines the timbre of the voice.',
-    strategyCharts: 'Sundberg strategy charts show how singers tune their formant resonances relative to pitch harmonics. Diagonal lines represent harmonic frequencies. The shaded region shows the typical range for the selected voice type.',
+    controls: 'Pitch, phonation, vibrato, and vocal strategy controls. Strategy determines how formants track pitch harmonics.',
+    charts: 'Vowel space (drag to change timbre) and Sundberg resonance strategy charts showing formant-harmonic relationships.',
   };
 </script>
 
 <svelte:document onkeydown={handleKeyDown} onkeyup={handleKeyUp} />
 
 <div class="app-grid">
-  <!-- HEADER: Transport + Voice chips + expert toggle -->
+  <!-- HEADER -->
   <header class="app-header">
     <TransportBar onplayclick={handlePlayPause} {bridgeInitialized} {expertMode} />
     <div class="header-spacer"></div>
@@ -131,46 +125,57 @@
     </label>
   </header>
 
-  <!-- MAIN: Controls left, Charts right -->
-  <div class="app-main">
-    <!-- Left: compact controls -->
-    <div class="panel panel-controls">
-      <RegionHelp text={HELP.controls} />
+  <!-- PANELS: horizontal control strip -->
+  <div class="panels">
+    <RegionHelp text={HELP.controls} />
+    <div class="panel-col">
       <PitchSection {expertMode} />
-      <div class="control-group">
-        <ExpressionControls {expertMode} />
-        <VibratoVisual rate={voiceParams.vibratoRate} extent={voiceParams.vibratoExtent} />
-      </div>
-      <PhonationMode {expertMode} />
-      <StrategyPanel />
+      <ExpressionControls {expertMode} />
+      <VibratoVisual rate={voiceParams.vibratoRate} extent={voiceParams.vibratoExtent} />
     </div>
-
-    <!-- Right: Vowel chart + R1/R2 strategy charts stacked -->
-    <div class="panel panel-charts">
-      <RegionHelp text={HELP.vowelChart} />
-      <VowelChart {expertMode} />
-      <div class="strategy-pair">
-        <R1StrategyChart
-          f0={voiceParams.f0}
-          f1Freq={voiceParams.f1Freq}
-          r1Strategy={voiceParams.r1Strategy}
-          strategyMode={voiceParams.strategyMode}
-          voicePreset={voiceParams.voicePreset}
-        />
-        <R2StrategyChart
-          f0={voiceParams.f0}
-          f2Freq={voiceParams.f2Freq}
-          r2Strategy={voiceParams.r2Strategy}
-          strategyMode={voiceParams.strategyMode}
-          voicePreset={voiceParams.voicePreset}
-        />
-      </div>
+    <div class="panel-col">
+      <PhonationMode {expertMode} />
+    </div>
+    <div class="panel-col">
+      <StrategyPanel section="mode" />
+    </div>
+    <div class="panel-col">
+      <StrategyPanel section="r1" />
+    </div>
+    <div class="panel-col">
+      <StrategyPanel section="r2" />
     </div>
   </div>
 
-  <!-- PIANO: Full width at bottom -->
+  <!-- PIANO: bottom left -->
   <div class="app-piano">
     <PianoHarmonics />
+  </div>
+
+  <!-- RIGHT: vowel chart + resonance charts stacked -->
+  <div class="app-right">
+    <RegionHelp text={HELP.charts} />
+    <div class="right-vowel">
+      <VowelChart {expertMode} />
+    </div>
+    <div class="right-chart">
+      <R2StrategyChart
+        f0={voiceParams.f0}
+        f2Freq={voiceParams.f2Freq}
+        r2Strategy={voiceParams.r2Strategy}
+        strategyMode={voiceParams.strategyMode}
+        voicePreset={voiceParams.voicePreset}
+      />
+    </div>
+    <div class="right-chart">
+      <R1StrategyChart
+        f0={voiceParams.f0}
+        f1Freq={voiceParams.f1Freq}
+        r1Strategy={voiceParams.r1Strategy}
+        strategyMode={voiceParams.strategyMode}
+        voicePreset={voiceParams.voicePreset}
+      />
+    </div>
   </div>
 </div>
 
@@ -216,45 +221,61 @@
     transform: translateX(16px);
     border-color: var(--color-accent);
   }
-  .panel {
+
+  /* Horizontal control panels */
+  .panels {
+    grid-area: panels;
     position: relative;
     display: flex;
-    flex-direction: column;
-    gap: var(--spacing-sm);
-    padding: var(--spacing-sm);
-    overflow: hidden;
-    min-width: 0;
-    min-height: 0;
+    gap: 1px;
+    background: var(--color-border);
+    overflow-y: auto;
+    overflow-x: hidden;
   }
-  .panel-controls {
-    flex: 0 0 220px;
-    border-right: 1px solid var(--color-border);
+  .panel-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background: var(--color-bg);
+    min-width: 0;
     overflow-y: auto;
   }
-  .panel-charts {
-    flex: 1 1 auto;
+
+  /* Right column: vowel + resonance stacked */
+  .app-right {
+    grid-area: right;
+    position: relative;
+    display: grid;
+    grid-template-rows: 1fr 1fr 1fr;
+    grid-template-areas:
+      "vowels"
+      "r2resonance"
+      "r1resonance";
     overflow: hidden;
-    justify-content: stretch;
+    border-left: 1px solid var(--color-border);
   }
-  .panel-charts > :global(.vowel-chart-section) {
-    flex: 1 1 auto;
+  .right-vowel {
+    grid-area: vowels;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     min-height: 0;
   }
-  .strategy-pair {
+  .right-chart {
+    overflow: hidden;
     display: flex;
-    gap: var(--spacing-sm);
-    width: 100%;
-    flex: 0 0 auto;
-    height: 5cm;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+    border-top: 1px solid var(--color-border);
   }
-  .strategy-pair > :global(*) {
-    flex: 1;
-    min-width: 0;
-    height: 100%;
+  .right-chart:nth-child(3) {
+    grid-area: r2resonance;
   }
-  .control-group {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-sm);
+  .right-chart:nth-child(4) {
+    grid-area: r1resonance;
   }
 </style>

@@ -45,12 +45,13 @@
   display: grid;
   height: 100dvh;
   height: 100vh;
-  grid-template-rows: auto 1fr 8cm;
-  grid-template-columns: 1fr;
+  grid-template-rows: auto 1fr 1fr 3cm;
+  grid-template-columns: 1fr 40%;
   grid-template-areas:
-    "header"
-    "main"
-    "piano";
+    "header  header"
+    "panels  right"
+    "panels  right"
+    "piano   right";
   gap: 0;
   overflow: hidden;
 }
@@ -66,18 +67,10 @@
   min-height: 40px;
 }
 
-.app-main {
-  grid-area: main;
-  display: flex;
-  overflow: hidden;
-  min-height: 0;
-}
-
 .app-piano {
   grid-area: piano;
   overflow: hidden;
   border-top: 1px solid var(--color-border);
-  height: 8cm;
 }
 
 .header-spacer {
