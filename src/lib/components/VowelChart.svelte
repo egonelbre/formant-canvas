@@ -190,7 +190,7 @@
         text-anchor="start" font-size="10" fill="var(--color-text-secondary)" opacity="0.6"
       >200</text>
       <text
-        x={4} y={PLOT_HEIGHT - 4}
+        x={30} y={PLOT_HEIGHT - 4}
         text-anchor="start" font-size="10" fill="var(--color-text-secondary)" opacity="0.6"
       >600</text>
 
