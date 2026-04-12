@@ -9,17 +9,16 @@ import type { R1Strategy, R2Strategy, StrategyMode } from '../strategies/types.t
  * This is the ONLY place audio parameter state lives (LINK-02).
  */
 export class VoiceParams {
-  // Source (per D-01: male modal /a/ at ~120 Hz)
-  f0 = $state(120);              // Hz, fundamental frequency
-  aspirationLevel = $state(0.03); // 0-1 mix (per D-02: light aspiration)
+  // Source: mezzo default at 220 Hz
+  f0 = $state(220);              // Hz, fundamental frequency
+  aspirationLevel = $state(0.03); // 0-1 mix
   openQuotient = $state(0.6);    // Rosenberg OQ
 
-  // Formants (per D-07: all four active; per D-01: male /a/ defaults)
-  // Per D-08: parallel topology, independent gains
-  f1Freq = $state(730);    f1BW = $state(90);   f1Gain = $state(1.0);
-  f2Freq = $state(1090);   f2BW = $state(110);  f2Gain = $state(0.7);
-  f3Freq = $state(2440);   f3BW = $state(170);  f3Gain = $state(0.3);
-  f4Freq = $state(3300);   f4BW = $state(320);  f4Gain = $state(0.15);
+  // Formants: mezzo preset defaults
+  f1Freq = $state(820);    f1BW = $state(100);  f1Gain = $state(1.0);
+  f2Freq = $state(1180);   f2BW = $state(120);  f2Gain = $state(0.7);
+  f3Freq = $state(2750);   f3BW = $state(180);  f3Gain = $state(0.3);
+  f4Freq = $state(3500);   f4BW = $state(350);  f4Gain = $state(0.15);
   f5Freq = $state(4200);   f5BW = $state(400);  f5Gain = $state(0.08);
 
   // Master
@@ -41,7 +40,7 @@ export class VoiceParams {
   muted = $state(false);
 
   // Voice preset tracking (D-12)
-  voicePreset = $state<string | null>(null);  // null = custom
+  voicePreset = $state<string | null>('mezzo');
 
   // Strategy (Phase 4) — R1 and R2 independently toggleable, singer's formant separate
   r1Strategy = $state<R1Strategy | null>(null);
