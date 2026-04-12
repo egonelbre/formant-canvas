@@ -187,11 +187,12 @@
       {@const ly = yScale(d.y1) + (yScale(d.y2) - yScale(d.y1)) * 0.75}
       <text
         x={lx + 4}
-        y={ly - 4}
+        y={ly - 5}
         text-anchor="start"
-        font-size="10"
-        fill={isActive ? 'var(--color-accent)' : '#333333'}
-        opacity={isActive ? 1 : 0.6}
+        font-size="13"
+        font-weight="600"
+        fill={isActive ? 'var(--color-accent)' : '#111111'}
+        opacity={isActive ? 1 : 0.7}
       >{d.label}</text>
     {/each}
 
