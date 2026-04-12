@@ -131,9 +131,9 @@
     </label>
   </header>
 
-  <!-- MAIN: Controls + Vowel Chart + Strategy Charts -->
+  <!-- MAIN: Controls left, Charts right -->
   <div class="app-main">
-    <!-- Left panel: compact controls -->
+    <!-- Left: compact controls -->
     <div class="panel panel-controls">
       <RegionHelp text={HELP.controls} />
       <PitchSection {expertMode} />
@@ -145,29 +145,26 @@
       <StrategyPanel />
     </div>
 
-    <!-- Center: Vowel chart -->
-    <div class="panel panel-vowel">
+    <!-- Right: Vowel chart + R1/R2 strategy charts stacked -->
+    <div class="panel panel-charts">
       <RegionHelp text={HELP.vowelChart} />
       <VowelChart {expertMode} />
-    </div>
-
-    <!-- Right: R1/R2 strategy charts stacked -->
-    <div class="panel panel-charts">
-      <RegionHelp text={HELP.strategyCharts} />
-      <R1StrategyChart
-        f0={voiceParams.f0}
-        f1Freq={voiceParams.f1Freq}
-        r1Strategy={voiceParams.r1Strategy}
-        strategyMode={voiceParams.strategyMode}
-        voicePreset={voiceParams.voicePreset}
-      />
-      <R2StrategyChart
-        f0={voiceParams.f0}
-        f2Freq={voiceParams.f2Freq}
-        r2Strategy={voiceParams.r2Strategy}
-        strategyMode={voiceParams.strategyMode}
-        voicePreset={voiceParams.voicePreset}
-      />
+      <div class="strategy-pair">
+        <R1StrategyChart
+          f0={voiceParams.f0}
+          f1Freq={voiceParams.f1Freq}
+          r1Strategy={voiceParams.r1Strategy}
+          strategyMode={voiceParams.strategyMode}
+          voicePreset={voiceParams.voicePreset}
+        />
+        <R2StrategyChart
+          f0={voiceParams.f0}
+          f2Freq={voiceParams.f2Freq}
+          r2Strategy={voiceParams.r2Strategy}
+          strategyMode={voiceParams.strategyMode}
+          voicePreset={voiceParams.voicePreset}
+        />
+      </div>
     </div>
   </div>
 
@@ -234,15 +231,19 @@
     flex: 0 0 220px;
     border-right: 1px solid var(--color-border);
   }
-  .panel-vowel {
+  .panel-charts {
     flex: 1 1 auto;
     align-items: center;
-    justify-content: center;
   }
-  .panel-charts {
-    flex: 0 0 280px;
-    border-left: 1px solid var(--color-border);
-    justify-content: space-evenly;
+  .strategy-pair {
+    display: flex;
+    gap: var(--spacing-sm);
+    width: 100%;
+    min-height: 0;
+  }
+  .strategy-pair > :global(*) {
+    flex: 1;
+    min-width: 0;
   }
   .control-group {
     display: flex;
