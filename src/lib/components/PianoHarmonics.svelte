@@ -10,15 +10,29 @@
   const START_MIDI = 36;
   const END_MIDI = 107;
 
-  // Layout constants
-  const WHITE_KEY_WIDTH = 14;
-  const WHITE_KEY_HEIGHT = 48;
-  const BLACK_KEY_WIDTH = 9;
-  const BLACK_KEY_HEIGHT = 28;
-  const LABEL_PADDING = 20; // space above harmonics for R1/R2/f0 labels
-  const HARMONIC_REGION_HEIGHT = 140;
-  const BAR_REGION_HEIGHT = HARMONIC_REGION_HEIGHT - LABEL_PADDING;
-  const SVG_HEIGHT = LABEL_PADDING + HARMONIC_REGION_HEIGHT + WHITE_KEY_HEIGHT;
+  // Measure container
+  let containerWidth = $state(600);
+  let containerHeight = $state(200);
+
+  // Count white keys to derive key width from container
+  let whiteKeyCount = $derived.by(() => {
+    let count = 0;
+    for (let midi = START_MIDI; midi <= END_MIDI; midi++) {
+      if (!BLACK_NOTE_INDICES.has(((midi % 12) + 12) % 12)) count++;
+    }
+    return count;
+  });
+
+  // Layout derived from container size
+  let WHITE_KEY_WIDTH = $derived(containerWidth / whiteKeyCount);
+  let BLACK_KEY_WIDTH = $derived(WHITE_KEY_WIDTH * 0.64);
+  let KEY_RATIO = 0.23; // fraction of height for piano keys
+  let WHITE_KEY_HEIGHT = $derived(containerHeight * KEY_RATIO);
+  let BLACK_KEY_HEIGHT = $derived(WHITE_KEY_HEIGHT * 0.58);
+  let LABEL_PADDING = 16;
+  let HARMONIC_REGION_HEIGHT = $derived(containerHeight - WHITE_KEY_HEIGHT - LABEL_PADDING);
+  let BAR_REGION_HEIGHT = $derived(HARMONIC_REGION_HEIGHT);
+  let SVG_HEIGHT = $derived(containerHeight);
 
   // Black key classification: MIDI % 12 in [1,3,6,8,10]
   const BLACK_NOTE_INDICES = new Set([1, 3, 6, 8, 10]);
@@ -71,7 +85,7 @@
     return keys;
   });
 
-  let svgWidth = $derived(whiteKeys.length * WHITE_KEY_WIDTH);
+  let svgWidth = $derived(containerWidth);
 
   // Precompute x-center position for every MIDI note in range
   let midiCenterX = $derived.by(() => {
@@ -262,12 +276,12 @@
   }
 </script>
 
-<div class="piano-harmonics-wrapper">
+<div class="piano-harmonics-wrapper" bind:clientWidth={containerWidth} bind:clientHeight={containerHeight}>
   <svg
     class="piano-harmonics"
     bind:this={svgEl}
     viewBox="0 0 {svgWidth} {SVG_HEIGHT}"
-    preserveAspectRatio="none"
+    preserveAspectRatio="xMidYMid meet"
     role="group"
     aria-label="Piano keyboard with harmonics"
     style="touch-action: none; cursor: {dragMode === 'formant' ? 'ew-resize' : 'default'};"
