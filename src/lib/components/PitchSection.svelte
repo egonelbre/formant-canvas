@@ -1,18 +1,14 @@
 <script lang="ts">
   import { voiceParams } from '../audio/state.svelte.ts';
   import { formatPitchReadout } from '../audio/dsp/pitch-utils.ts';
-  import Tooltip from './Tooltip.svelte';
-  import { TOOLTIPS } from '../data/tooltips.ts';
 
   interface Props {
     expertMode?: boolean;
   }
   let { expertMode = false }: Props = $props();
 
-  // Parse readout into parts for accent coloring on note name
   let readoutParts = $derived.by(() => {
     const readout = formatPitchReadout(voiceParams.f0);
-    // Format: "220 Hz . A3 . +0c"
     const parts = readout.split(' . ');
     return {
       hz: parts[0] || '',
@@ -23,11 +19,7 @@
 </script>
 
 <section class="pitch-section">
-  <div class="section-header-row">
-    <h2 class="section-heading">Pitch</h2>
-    <Tooltip text={TOOLTIPS.pitch.text} expert={TOOLTIPS.pitch.expert} {expertMode} />
-  </div>
-
+  <h2 class="section-heading">Pitch</h2>
   <div class="pitch-readout">
     <span>{readoutParts.hz}</span>
     <span class="separator"> . </span>
@@ -41,38 +33,32 @@
   .pitch-section {
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-md, 16px);
+    gap: var(--spacing-xs, 4px);
   }
 
   .section-heading {
-    font-size: 16px;
+    font-size: 13px;
     font-weight: 600;
     line-height: 1.2;
-    color: var(--color-text, #e0e0e0);
+    color: var(--color-text);
     margin: 0;
-  }
-
-  .section-header-row {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm, 8px);
   }
 
   .pitch-readout {
     font-family: monospace;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 400;
     line-height: 1.0;
-    color: var(--color-text, #e0e0e0);
+    color: var(--color-text);
     text-align: center;
   }
 
   .separator {
-    color: var(--color-text-secondary, #8a8aaa);
+    color: var(--color-text-secondary);
   }
 
   .note-name {
-    color: var(--color-accent, #6366f1);
+    color: var(--color-accent);
     font-weight: 600;
   }
 </style>

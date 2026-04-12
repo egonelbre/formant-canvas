@@ -110,15 +110,15 @@
   }
 
   function getWhiteKeyFill(midi: number): string {
-    if (highlightMidi === midi || touchedMidis.has(midi)) return 'var(--color-accent, #6366f1)';
-    if (isPressed(midi)) return 'rgba(99, 102, 241, 0.5)';
-    return '#d4d4d8';
+    if (highlightMidi === midi || touchedMidis.has(midi)) return '#2563eb';
+    if (isPressed(midi)) return 'rgba(37, 99, 235, 0.3)';
+    return '#ffffff';
   }
 
   function getBlackKeyFill(midi: number): string {
-    if (highlightMidi === midi || touchedMidis.has(midi)) return 'var(--color-accent, #6366f1)';
-    if (isPressed(midi)) return 'rgba(99, 102, 241, 0.7)';
-    return '#27272a';
+    if (highlightMidi === midi || touchedMidis.has(midi)) return '#2563eb';
+    if (isPressed(midi)) return 'rgba(37, 99, 235, 0.7)';
+    return '#222222';
   }
 
   function getLabelColor(midi: number): string {

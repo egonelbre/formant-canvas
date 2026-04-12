@@ -2,8 +2,6 @@
   import { voiceParams } from '../audio/state.svelte.ts';
   import { VOICE_PRESETS } from '../data/voice-presets.ts';
   import ChipGroup from './ChipGroup.svelte';
-  import Tooltip from './Tooltip.svelte';
-  import { TOOLTIPS } from '../data/tooltips.ts';
 
   interface Props {
     expertMode?: boolean;
@@ -25,7 +23,6 @@
 </script>
 
 <div class="voice-chips">
-  <Tooltip text={TOOLTIPS.voicePreset.text} expert={TOOLTIPS.voicePreset.expert} {expertMode} />
   <ChipGroup {options} selected={voiceParams.voicePreset} onselect={loadPreset} />
 </div>
 

@@ -1,7 +1,5 @@
 <script lang="ts">
   import { voiceParams } from '../audio/state.svelte.ts';
-  import Tooltip from './Tooltip.svelte';
-  import { TOOLTIPS } from '../data/tooltips.ts';
 
   interface Props {
     onplayclick: () => void;
@@ -12,7 +10,6 @@
 </script>
 
 <div class="transport-bar">
-  <Tooltip text={TOOLTIPS.playStop.text} {expertMode} />
   <button
     class="transport-btn play-btn"
     class:playing={voiceParams.playing}
@@ -30,7 +27,6 @@
   <div class="volume-control">
     <div class="volume-header">
       <span class="label">Volume</span>
-      <Tooltip text={TOOLTIPS.volume.text} expert={TOOLTIPS.volume.expert} {expertMode} />
       <span class="readout">{Math.round(voiceParams.masterGain * 100)}%</span>
     </div>
     <input
@@ -62,53 +58,55 @@
   .transport-bar {
     display: flex;
     align-items: center;
-    gap: var(--spacing-md, 16px);
+    gap: var(--spacing-sm, 8px);
   }
 
   .transport-btn {
-    width: 44px;
-    height: 44px;
-    min-width: 44px;
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 1px solid var(--color-border, #4a4a6a);
+    border: 1px solid var(--color-border);
     border-radius: var(--radius-sm, 6px);
-    background: var(--color-surface, #2a2a4a);
-    color: var(--color-text, #e0e0e0);
-    font-size: 18px;
+    background: var(--color-surface);
+    color: var(--color-text);
+    font-size: 16px;
     cursor: pointer;
   }
 
   .transport-btn:hover {
-    background: var(--color-hover, #3a3a5a);
+    background: var(--color-hover);
   }
 
   .play-btn {
-    font-size: 14px;
+    font-size: 13px;
     white-space: nowrap;
   }
 
   .play-btn.playing {
-    background: var(--color-accent, #6366f1);
-    border-color: var(--color-accent, #6366f1);
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: #ffffff;
   }
 
   .play-btn:not(.playing) {
-    /* When showing "Start Audio" text, allow wider button */
     width: auto;
-    padding: 0 12px;
+    padding: 0 10px;
   }
 
   .mute-btn.muted {
-    color: var(--color-muted, #ef4444);
+    color: var(--color-muted);
   }
 
   .volume-control {
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
+    min-width: 80px;
+    max-width: 140px;
   }
 
   .volume-header {
@@ -118,16 +116,16 @@
   }
 
   .label {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
     line-height: 1.3;
-    color: var(--color-text, #e0e0e0);
+    color: var(--color-text);
   }
 
   .readout {
     font-family: monospace;
-    font-size: 14px;
-    color: var(--color-text-secondary, #8a8aaa);
+    font-size: 12px;
+    color: var(--color-text-secondary);
   }
 
   input[type="range"] {

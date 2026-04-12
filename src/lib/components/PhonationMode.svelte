@@ -4,8 +4,6 @@
   import type { PhonationMode } from '../types.ts';
   import ChipGroup from './ChipGroup.svelte';
   import LabeledSlider from './LabeledSlider.svelte';
-  import Tooltip from './Tooltip.svelte';
-  import { TOOLTIPS } from '../data/tooltips.ts';
 
   interface Props {
     expertMode?: boolean;
@@ -25,10 +23,7 @@
 </script>
 
 <section class="phonation-section">
-  <div class="section-header-row">
-    <h2 class="section-heading">Phonation</h2>
-    <Tooltip text={TOOLTIPS.phonation.text} expert={TOOLTIPS.phonation.expert} {expertMode} />
-  </div>
+  <h2 class="section-heading">Phonation</h2>
   <ChipGroup {options} selected={voiceParams.phonationMode} onselect={loadMode} />
 
   {#if expertMode}
@@ -54,23 +49,16 @@
   }
 
   .section-heading {
-    font-size: 16px;
+    font-size: 13px;
     font-weight: 600;
     line-height: 1.2;
-    color: var(--color-text, #e0e0e0);
+    color: var(--color-text);
     margin: 0;
-  }
-
-  .section-header-row {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm, 8px);
   }
 
   .expert-params {
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-md, 16px);
-    margin-top: var(--spacing-sm, 8px);
+    gap: var(--spacing-sm, 8px);
   }
 </style>

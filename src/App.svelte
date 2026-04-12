@@ -13,9 +13,8 @@
   import StrategyPanel from './lib/components/StrategyPanel.svelte';
   import R1StrategyChart from './lib/charts/R1StrategyChart.svelte';
   import R2StrategyChart from './lib/charts/R2StrategyChart.svelte';
-  import Tooltip from './lib/components/Tooltip.svelte';
   import VibratoVisual from './lib/components/VibratoVisual.svelte';
-  import { TOOLTIPS } from './lib/data/tooltips.ts';
+  import RegionHelp from './lib/components/RegionHelp.svelte';
   import { computeTargets } from './lib/strategies/engine.ts';
   import { pickStrategy } from './lib/strategies/auto-strategy.ts';
 
@@ -28,7 +27,6 @@
   let pressedKeys = $state(new Set<string>());
 
   // Auto-strategy: reactively update strategy selections as f0/voiceType change
-  // Shows passaggio transitions (e.g. tenor switching from R1:2f0 to R1:f0)
   $effect(() => {
     if (!voiceParams.autoStrategy) return;
     const f0 = voiceParams.f0;
@@ -39,10 +37,7 @@
     voiceParams.singerFormant = rec.singerFormant;
   });
 
-  // Strategy locked-mode: auto-tune formants to maintain ratio (D-11, STRAT-03)
-  // Placed BEFORE syncParams $effect so targets are written before audio sync.
-  // Only reads f0/r1Strategy/r2Strategy/singerFormant/strategyMode/strategyOverriding/voicePreset --
-  // does NOT read formant frequencies it writes to, avoiding circular reactive updates (T-04-03).
+  // Strategy locked-mode: auto-tune formants to maintain ratio
   $effect(() => {
     const mode = voiceParams.strategyMode;
     const r1 = voiceParams.r1Strategy;
@@ -65,19 +60,17 @@
     if (t.f5 !== null) voiceParams.f5Freq = t.f5;
   });
 
-  // Forward ALL voiceParams changes to audio graph (AUDIO-06, LINK-02)
-  // Dependency tracking is consolidated in voiceParams.snapshot (WR-03)
+  // Forward ALL voiceParams changes to audio graph
   $effect(() => {
     void voiceParams.snapshot;
     bridge.syncParams();
   });
 
-  // Play/pause handler (D-15: responds instantly)
   async function handlePlayPause() {
     try {
       if (!bridgeInitialized) {
         await bridge.init();
-        bridge.syncParams(); // push current reactive state into freshly built graph
+        bridge.syncParams();
         bridgeInitialized = true;
       }
       if (voiceParams.playing) {
@@ -92,14 +85,10 @@
     }
   }
 
-  // QWERTY keyboard handler (D-03, VOICE-02)
   function handleKeyDown(event: KeyboardEvent) {
-    // Don't capture keys when typing in text inputs (Pitfall 3)
     const tag = (document.activeElement?.tagName ?? '').toLowerCase();
     if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
-    // Ignore key repeats
     if (event.repeat) return;
-    // Only handle when audio is playing
     if (!voiceParams.playing) return;
 
     const midi = QWERTY_MAP[event.code];
@@ -117,13 +106,22 @@
       pressedKeys = next;
     }
   }
+
+  // Region help descriptions
+  const HELP = {
+    controls: 'Controls for voice type, phonation style, vibrato, and vocal strategy. Voice presets set formant frequencies for different singer types. Phonation controls how the vocal folds vibrate. Strategy controls how formants track pitch.',
+    vowelChart: 'The vowel space chart shows F1 (openness) vs F2 (frontness). Drag the dot to change the vowel sound. Click IPA symbols to snap to standard vowels. The position determines the timbre of the voice.',
+    strategyCharts: 'Sundberg strategy charts show how singers tune their formant resonances relative to pitch harmonics. Diagonal lines represent harmonic frequencies. The shaded region shows the typical range for the selected voice type.',
+  };
 </script>
 
 <svelte:document onkeydown={handleKeyDown} onkeyup={handleKeyUp} />
 
 <div class="app-grid">
-  <!-- HEADER: Voice chips + expert toggle + transport (D-05, D-14) -->
+  <!-- HEADER: Transport + Voice chips + expert toggle -->
   <header class="app-header">
+    <TransportBar onplayclick={handlePlayPause} {bridgeInitialized} {expertMode} />
+    <div class="header-spacer"></div>
     <VoicePresets {expertMode} />
     <div class="header-spacer"></div>
     <label class="expert-toggle">
@@ -131,43 +129,51 @@
       <input type="checkbox" bind:checked={expertMode} />
       <span class="toggle-track"><span class="toggle-thumb"></span></span>
     </label>
-    <TransportBar onplayclick={handlePlayPause} {bridgeInitialized} {expertMode} />
   </header>
 
-  <!-- SIDEBAR: Pitch, Vibrato, Phonation, Strategy (D-06, D-07) -->
-  <aside class="app-sidebar">
-    <PitchSection {expertMode} />
-    <div class="sidebar-section">
-      <h2 class="section-heading">Vibrato</h2>
-      <ExpressionControls {expertMode} />
-      <VibratoVisual rate={voiceParams.vibratoRate} extent={voiceParams.vibratoExtent} />
+  <!-- MAIN: Controls + Vowel Chart + Strategy Charts -->
+  <div class="app-main">
+    <!-- Left panel: compact controls -->
+    <div class="panel panel-controls">
+      <RegionHelp text={HELP.controls} />
+      <PitchSection {expertMode} />
+      <div class="control-group">
+        <ExpressionControls {expertMode} />
+        <VibratoVisual rate={voiceParams.vibratoRate} extent={voiceParams.vibratoExtent} />
+      </div>
+      <PhonationMode {expertMode} />
+      <StrategyPanel />
     </div>
-    <PhonationMode {expertMode} />
-    <StrategyPanel />
-  </aside>
 
-  <!-- CENTER: Piano keyboard with harmonics -->
-  <div class="app-piano">
-    <PianoHarmonics />
+    <!-- Center: Vowel chart -->
+    <div class="panel panel-vowel">
+      <RegionHelp text={HELP.vowelChart} />
+      <VowelChart {expertMode} />
+    </div>
+
+    <!-- Right: R1/R2 strategy charts stacked -->
+    <div class="panel panel-charts">
+      <RegionHelp text={HELP.strategyCharts} />
+      <R1StrategyChart
+        f0={voiceParams.f0}
+        f1Freq={voiceParams.f1Freq}
+        r1Strategy={voiceParams.r1Strategy}
+        strategyMode={voiceParams.strategyMode}
+        voicePreset={voiceParams.voicePreset}
+      />
+      <R2StrategyChart
+        f0={voiceParams.f0}
+        f2Freq={voiceParams.f2Freq}
+        r2Strategy={voiceParams.r2Strategy}
+        strategyMode={voiceParams.strategyMode}
+        voicePreset={voiceParams.voicePreset}
+      />
+    </div>
   </div>
 
-  <!-- RIGHT: VowelChart / R2 / R1 stacked (D-03) -->
-  <div class="app-charts">
-    <VowelChart {expertMode} />
-    <R2StrategyChart
-      f0={voiceParams.f0}
-      f2Freq={voiceParams.f2Freq}
-      r2Strategy={voiceParams.r2Strategy}
-      strategyMode={voiceParams.strategyMode}
-      voicePreset={voiceParams.voicePreset}
-    />
-    <R1StrategyChart
-      f0={voiceParams.f0}
-      f1Freq={voiceParams.f1Freq}
-      r1Strategy={voiceParams.r1Strategy}
-      strategyMode={voiceParams.strategyMode}
-      voicePreset={voiceParams.voicePreset}
-    />
+  <!-- PIANO: Full width at bottom -->
+  <div class="app-piano">
+    <PianoHarmonics />
   </div>
 </div>
 
@@ -180,7 +186,7 @@
     user-select: none;
   }
   .expert-label {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
     color: var(--color-text);
   }
@@ -188,10 +194,10 @@
     display: none;
   }
   .toggle-track {
-    width: 40px;
-    height: 22px;
+    width: 36px;
+    height: 20px;
     background: var(--color-border);
-    border-radius: 11px;
+    border-radius: 10px;
     position: relative;
     transition: background 0.2s;
   }
@@ -199,9 +205,10 @@
     background: var(--color-accent);
   }
   .toggle-thumb {
-    width: 18px;
-    height: 18px;
-    background: var(--color-text);
+    width: 16px;
+    height: 16px;
+    background: #ffffff;
+    border: 1px solid var(--color-border);
     border-radius: 50%;
     position: absolute;
     top: 2px;
@@ -209,18 +216,37 @@
     transition: transform 0.2s;
   }
   .expert-toggle input:checked + .toggle-track .toggle-thumb {
-    transform: translateX(18px);
+    transform: translateX(16px);
+    border-color: var(--color-accent);
   }
-  .sidebar-section {
+  .panel {
+    position: relative;
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-md);
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm);
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-width: 0;
+    min-height: 0;
   }
-  .section-heading {
-    font-size: 16px;
-    font-weight: 600;
-    line-height: 1.2;
-    margin: 0;
-    color: var(--color-text);
+  .panel-controls {
+    flex: 0 0 220px;
+    border-right: 1px solid var(--color-border);
+  }
+  .panel-vowel {
+    flex: 1 1 auto;
+    align-items: center;
+    justify-content: center;
+  }
+  .panel-charts {
+    flex: 0 0 280px;
+    border-left: 1px solid var(--color-border);
+    justify-content: space-evenly;
+  }
+  .control-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
   }
 </style>

@@ -176,7 +176,7 @@
         y1={yScale(d.y1)}
         x2={xScale(d.x2)}
         y2={yScale(d.y2)}
-        stroke={isActive ? 'var(--color-accent)' : '#e0e0e0'}
+        stroke={isActive ? 'var(--color-accent)' : '#333333'}
         stroke-width={isActive ? 2 : 1}
         opacity={isActive ? 1 : 0.4}
       />
@@ -185,7 +185,7 @@
         x={xScale(d.x2) + 3}
         y={yScale(d.y2) + 4}
         font-size="10"
-        fill={isActive ? 'var(--color-accent)' : '#e0e0e0'}
+        fill={isActive ? 'var(--color-accent)' : '#333333'}
         opacity={isActive ? 1 : 0.6}
       >{d.label}</text>
     {/each}

@@ -27,13 +27,13 @@
   }
 
   .chip {
-    padding: 8px 16px;
-    min-height: 44px;
+    padding: 4px 10px;
+    min-height: 32px;
     border-radius: 16px;
-    background: var(--color-surface, #2a2a4a);
-    border: 1px solid var(--color-border, #4a4a6a);
-    color: var(--color-text, #e0e0e0);
-    font-size: 14px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    color: var(--color-text);
+    font-size: 13px;
     font-weight: 400;
     cursor: pointer;
     transition: background 0.1s, border-color 0.1s, color 0.1s;
@@ -44,10 +44,9 @@
   }
 
   .chip.selected {
-    background: var(--color-active, #3a3a6a);
-    border: 2px solid var(--color-accent, #6366f1);
-    color: var(--color-accent, #6366f1);
-    /* Compensate for 2px border to prevent layout shift */
-    padding: 7px 15px;
+    background: var(--color-active);
+    border: 2px solid var(--color-accent);
+    color: var(--color-accent);
+    padding: 3px 9px;
   }
 </style>

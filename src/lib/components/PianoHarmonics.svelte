@@ -137,13 +137,13 @@
   ];
 
   function getWhiteKeyFill(midi: number): string {
-    if (highlightMidi === midi) return '#6366f1';
-    return '#d4d4d8';
+    if (highlightMidi === midi) return '#2563eb';
+    return '#ffffff';
   }
 
   function getBlackKeyFill(midi: number): string {
-    if (highlightMidi === midi) return '#6366f1';
-    return '#27272a';
+    if (highlightMidi === midi) return '#2563eb';
+    return '#222222';
   }
 
   // --- Pointer interaction ---
@@ -261,8 +261,7 @@
   }
 </script>
 
-<div class="section">
-  <h2 class="section-heading">Harmonics</h2>
+<div class="piano-harmonics-wrapper">
   <svg
     class="piano-harmonics"
     bind:this={svgEl}
@@ -357,7 +356,7 @@
           y={198}
           text-anchor="middle"
           font-size="11"
-          fill="#8a8aaa"
+          fill="#777777"
           pointer-events="none"
         >{cl.label}</text>
       {/if}
@@ -366,6 +365,10 @@
 </div>
 
 <style>
+  .piano-harmonics-wrapper {
+    width: 100%;
+    overflow: hidden;
+  }
   .piano-harmonics {
     width: 100%;
     height: auto;

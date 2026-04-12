@@ -44,7 +44,7 @@
         centerX: x,
         y,
         height: barHeight,
-        fill: h.n === 1 ? '#6366f1' : '#e0e0e0',
+        fill: h.n === 1 ? '#2563eb' : '#333333',
         opacity: h.n === 1 ? 1.0 : 0.8,
       };
     });
@@ -82,7 +82,7 @@
         y={bar.y - 3}
         text-anchor="middle"
         font-size="9"
-        fill={bar.n === 1 ? '#6366f1' : '#8a8aaa'}
+        fill={bar.n === 1 ? '#2563eb' : '#777777'}
         pointer-events="none"
       >{bar.n === 1 ? 'f0' : bar.n + 'f0'}</text>
     {/if}

@@ -4,10 +4,7 @@
   import { HILLENBRAND_VOWELS, getActiveVowelRegion, interpolateHigherFormants } from '../data/hillenbrand.ts';
   import type { SpeakerGroup, HillenbrandVowel } from '../data/hillenbrand.ts';
   import { voiceParams } from '../audio/state.svelte.ts';
-  import ChipGroup from './ChipGroup.svelte';
   import LabeledSlider from './LabeledSlider.svelte';
-  import Tooltip from './Tooltip.svelte';
-  import { TOOLTIPS } from '../data/tooltips.ts';
   import VowelChartOverlay from './VowelChartOverlay.svelte';
   import StrategyOverlayVowel from './StrategyOverlayVowel.svelte';
 
@@ -33,7 +30,6 @@
 
   // State
   let currentGroup: SpeakerGroup = $state('men');
-  let overlayGroup = $state<string | null>(null);
   let dragging = $state(false);
   let svgEl: SVGSVGElement | undefined = $state();
 
@@ -58,13 +54,7 @@
   // Derived: active vowel region (D-19, RANGE-03)
   let activeRegion = $derived(getActiveVowelRegion(voiceParams.f1Freq, voiceParams.f2Freq, currentGroup));
 
-  // Voice-type overlay options
-  const overlayOptions = [
-    { key: 'none', label: 'None' },
-    { key: 'men', label: 'Male Range' },
-    { key: 'women', label: 'Female Range' },
-    { key: 'child', label: 'Child Range' },
-  ];
+  // Voice-type overlay: show range for current speaker group
 
   // Ellipse rendering helpers
   function ellipseCx(vowel: HillenbrandVowel): number {
@@ -146,34 +136,15 @@
     voiceParams.f5Freq = Math.round(data.f3 * 1.6);  // rough F5 estimate
   }
 
-  function onOverlaySelect(key: string) {
-    overlayGroup = key === 'none' ? null : key;
-    if (key !== 'none') currentGroup = key as SpeakerGroup;
-  }
 </script>
 
-<div class="vowel-chart-section section">
-  <div class="section-header-row">
-    <h2 class="section-heading">Vowel Space</h2>
-    <Tooltip text={TOOLTIPS.vowelChart.text} expert={TOOLTIPS.vowelChart.expert} {expertMode} />
-  </div>
-
+<div class="vowel-chart-section">
   {#if expertMode}
     <div class="formant-readouts">
       <span class="readout">F1: {Math.round(voiceParams.f1Freq)} Hz</span>
       <span class="readout">F2: {Math.round(voiceParams.f2Freq)} Hz</span>
     </div>
   {/if}
-
-  <!-- Voice-type overlay selector (D-17) -->
-  <div class="overlay-selector">
-    <span class="overlay-label">Formant Ranges</span>
-    <ChipGroup
-      options={overlayOptions}
-      selected={overlayGroup ?? 'none'}
-      onselect={onOverlaySelect}
-    />
-  </div>
 
   <svg
     bind:this={svgEl}
@@ -195,62 +166,60 @@
         <line
           x1={f2Scale(tick)} y1={0}
           x2={f2Scale(tick)} y2={PLOT_HEIGHT}
-          stroke="#4a4a6a" stroke-opacity="0.4" stroke-width="0.5"
+          stroke="var(--color-border)" stroke-opacity="0.4" stroke-width="0.5"
         />
       {/each}
       {#each f1Ticks as tick}
         <line
           x1={0} y1={f1Scale(tick)}
           x2={PLOT_WIDTH} y2={f1Scale(tick)}
-          stroke="#4a4a6a" stroke-opacity="0.4" stroke-width="0.5"
+          stroke="var(--color-border)" stroke-opacity="0.4" stroke-width="0.5"
         />
       {/each}
 
       <!-- X-axis (F2) -->
-      <line x1={0} y1={PLOT_HEIGHT} x2={PLOT_WIDTH} y2={PLOT_HEIGHT} stroke="#4a4a6a" stroke-width="1" />
+      <line x1={0} y1={PLOT_HEIGHT} x2={PLOT_WIDTH} y2={PLOT_HEIGHT} stroke="var(--color-border)" stroke-width="1" />
       {#each f2Ticks as tick}
         <line
           x1={f2Scale(tick)} y1={PLOT_HEIGHT}
           x2={f2Scale(tick)} y2={PLOT_HEIGHT + 6}
-          stroke="#4a4a6a" stroke-width="1"
+          stroke="var(--color-border)" stroke-width="1"
         />
         <text
           x={f2Scale(tick)} y={PLOT_HEIGHT + 18}
-          text-anchor="middle" font-size="11" fill="#8a8aaa"
+          text-anchor="middle" font-size="11" fill="var(--color-text-secondary)"
         >{tick}</text>
       {/each}
       <text
         x={PLOT_WIDTH / 2} y={PLOT_HEIGHT + 34}
-        text-anchor="middle" font-size="12" font-weight="600" fill="#8a8aaa"
+        text-anchor="middle" font-size="12" font-weight="600" fill="var(--color-text-secondary)"
       >F2 (Hz)</text>
 
       <!-- Y-axis (F1) -->
-      <line x1={0} y1={0} x2={0} y2={PLOT_HEIGHT} stroke="#4a4a6a" stroke-width="1" />
+      <line x1={0} y1={0} x2={0} y2={PLOT_HEIGHT} stroke="var(--color-border)" stroke-width="1" />
       {#each f1Ticks as tick}
         <line
           x1={0} y1={f1Scale(tick)}
           x2={-6} y2={f1Scale(tick)}
-          stroke="#4a4a6a" stroke-width="1"
+          stroke="var(--color-border)" stroke-width="1"
         />
         <text
           x={-10} y={f1Scale(tick)}
-          text-anchor="end" dominant-baseline="central" font-size="11" fill="#8a8aaa"
+          text-anchor="end" dominant-baseline="central" font-size="11" fill="var(--color-text-secondary)"
         >{tick}</text>
       {/each}
       <text
         x={0} y={0}
-        text-anchor="middle" font-size="12" font-weight="600" fill="#8a8aaa"
+        text-anchor="middle" font-size="12" font-weight="600" fill="var(--color-text-secondary)"
         transform="translate({-36}, {PLOT_HEIGHT / 2}) rotate(-90)"
       >F1 (Hz)</text>
 
       <!-- Voice-type overlay polygon -->
-      {#if overlayGroup}
-        <VowelChartOverlay
-          group={overlayGroup as SpeakerGroup}
-          {f1Scale}
-          {f2Scale}
-        />
-      {/if}
+      <VowelChartOverlay
+        group={currentGroup}
+        {f1Scale}
+        {f2Scale}
+      />
 
       <!-- Hillenbrand ellipses (D-16, RANGE-01) -->
       {#each HILLENBRAND_VOWELS as vowel (vowel.ipa)}
@@ -259,8 +228,8 @@
           cy={ellipseCy(vowel)}
           rx={ellipseRx(vowel)}
           ry={ellipseRy(vowel)}
-          fill={activeRegion === vowel.ipa ? 'rgba(99, 102, 241, 0.15)' : 'rgba(224, 224, 224, 0.06)'}
-          stroke={activeRegion === vowel.ipa ? 'rgba(99, 102, 241, 0.4)' : 'rgba(224, 224, 224, 0.2)'}
+          fill={activeRegion === vowel.ipa ? 'rgba(37, 99, 235, 0.12)' : 'rgba(0, 0, 0, 0.04)'}
+          stroke={activeRegion === vowel.ipa ? 'rgba(37, 99, 235, 0.4)' : 'rgba(0, 0, 0, 0.15)'}
           stroke-width="1"
         />
         <!-- Invisible click target -->
@@ -282,7 +251,7 @@
           dominant-baseline="central"
           font-size="14"
           font-weight="600"
-          fill="#8a8aaa"
+          fill="var(--color-text-secondary)"
           pointer-events="none"
         >{vowel.ipa}</text>
       {/each}
@@ -292,7 +261,7 @@
         cx={handleX}
         cy={handleY}
         r="8"
-        fill="#6366f1"
+        fill="var(--color-accent)"
         style="cursor: {dragging ? 'grabbing' : 'grab'};"
         role="slider"
         aria-label="Current vowel position"
@@ -310,7 +279,7 @@
         y={PLOT_HEIGHT + 44}
         text-anchor="end"
         font-size="11"
-        fill="#8a8aaa"
+        fill="var(--color-text-secondary)"
       >Data: Hillenbrand et al. (1995)</text>
     </g>
   </svg>
@@ -335,44 +304,30 @@
 
 <style>
   .vowel-chart-section {
-    /* uses .section from app.css */
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-height: 100%;
   }
 
   .vowel-chart {
     width: 100%;
     height: auto;
     display: block;
-  }
-
-  .overlay-selector {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm, 8px);
-    margin-bottom: var(--spacing-md, 16px);
-  }
-
-  .overlay-label {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--color-text-secondary, #8a8aaa);
-    white-space: nowrap;
-  }
-
-  .section-header-row {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-sm, 8px);
+    flex: 1;
+    min-height: 0;
   }
 
   .formant-readouts {
     display: flex;
     gap: var(--spacing-md, 16px);
+    justify-content: center;
   }
 
   .readout {
     font-family: monospace;
-    font-size: 14px;
-    color: var(--color-text-secondary, #8a8aaa);
+    font-size: 13px;
+    color: var(--color-text-secondary);
   }
 
   .expert-formant-params {

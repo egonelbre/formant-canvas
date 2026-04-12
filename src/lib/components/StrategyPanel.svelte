@@ -156,10 +156,10 @@
   }
 
   .section-heading {
-    font-size: 16px;
+    font-size: 13px;
     font-weight: 600;
     line-height: 1.2;
-    color: var(--color-text, #e0e0e0);
+    color: var(--color-text);
     margin: 0;
   }
 
