@@ -150,6 +150,7 @@
   }
 
   function onPointerDown(e: PointerEvent) {
+    e.preventDefault();
     dragging = true;
     svgEl?.setPointerCapture(e.pointerId);
     const midi = midiFromPointer(e);
@@ -158,6 +159,7 @@
 
   function onPointerMove(e: PointerEvent) {
     if (!dragging) return;
+    e.preventDefault();
     const midi = midiFromPointer(e);
     if (midi !== null) onkeyclick?.(midi);
   }
