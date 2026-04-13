@@ -1,6 +1,6 @@
 import { bandwidthToQ } from './dsp/formant-utils.ts';
 import { voiceParams } from './state.svelte.ts';
-import type { GlottalModel } from '../types.ts';
+import type { GlottalModel, FilterTopology } from '../types.ts';
 import glottalProcessorUrl from './worklet/glottal-processor.ts?worker&url';
 
 /**
@@ -16,10 +16,12 @@ import glottalProcessorUrl from './worklet/glottal-processor.ts?worker&url';
 export class AudioBridge {
   private ctx: AudioContext | null = null;
   private workletNode: AudioWorkletNode | null = null;
-  private formants: BiquadFilterNode[] = [];
+  private formantBiquadsA: BiquadFilterNode[] = [];
+  private formantBiquadsB: BiquadFilterNode[] = [];  // Secondary biquads (4th-order)
   private formantGains: GainNode[] = [];
   private sumGain: GainNode | null = null;
   private masterGain: GainNode | null = null;
+  private cascadeMakeupGain: GainNode | null = null;
   private dryGain: GainNode | null = null;
   private wetGain: GainNode | null = null;
   private convolver: ConvolverNode | null = null;
@@ -46,26 +48,25 @@ export class AudioBridge {
   }
 
   /**
-   * Build the parallel formant filter topology:
-   *
-   * GlottalWorkletNode --+--> BiquadF1 --> GainF1 --+
-   *                      +--> BiquadF2 --> GainF2 --+--> SumGain --> MasterGain --> destination
-   *                      +--> BiquadF3 --> GainF3 --+
-   *                      +--> BiquadF4 --> GainF4 --+
-   *                      +--> BiquadF5 --> GainF5 --+
+   * Build all formant filter nodes and wire in parallel topology (default).
+   * Creates both A and B biquad pools upfront; B pool used only in 4th-order mode.
    */
   private buildFormantChain(): void {
     if (!this.ctx || !this.workletNode) return;
 
     const now = this.ctx.currentTime;
 
-    // Sum node: collects all formant outputs
+    // Sum node: collects all formant outputs (parallel mode)
     this.sumGain = this.ctx.createGain();
     this.sumGain.gain.setTargetAtTime(1.0, now, 0.01);
 
     // Master volume control
     this.masterGain = this.ctx.createGain();
     this.masterGain.gain.setTargetAtTime(voiceParams.masterGain, now, 0.01);
+
+    // Cascade makeup gain (compensates for amplitude loss in series topology)
+    this.cascadeMakeupGain = this.ctx.createGain();
+    this.cascadeMakeupGain.gain.setTargetAtTime(3.0, now, 0.01);
 
     // Reverb: dry/wet send from masterGain
     this.dryGain = this.ctx.createGain();
@@ -85,9 +86,6 @@ export class AudioBridge {
     this.convolver.connect(this.wetGain);
     this.wetGain.connect(this.ctx.destination);
 
-    this.sumGain.connect(this.masterGain);
-
-    // Default formant values: male /a/ (per D-01)
     const formantDefaults = [
       { freq: voiceParams.f1Freq, bw: voiceParams.f1BW, gain: voiceParams.f1Gain },
       { freq: voiceParams.f2Freq, bw: voiceParams.f2BW, gain: voiceParams.f2Gain },
@@ -96,29 +94,175 @@ export class AudioBridge {
       { freq: voiceParams.f5Freq, bw: voiceParams.f5BW, gain: voiceParams.f5Gain },
     ];
 
-    this.formants = [];
+    this.formantBiquadsA = [];
+    this.formantBiquadsB = [];
     this.formantGains = [];
 
     for (let i = 0; i < 5; i++) {
       const { freq, bw, gain } = formantDefaults[i];
+      const q = bandwidthToQ(freq, bw);
 
-      // Create bandpass filter for this formant
-      const filter = this.ctx.createBiquadFilter();
-      filter.type = 'bandpass';
-      filter.frequency.setTargetAtTime(freq, now, 0.02);
-      filter.Q.setTargetAtTime(bandwidthToQ(freq, bw), now, 0.02);
-      this.formants.push(filter);
+      // Primary biquad (always active)
+      const filterA = this.ctx.createBiquadFilter();
+      filterA.type = 'bandpass';
+      filterA.frequency.setTargetAtTime(freq, now, 0.02);
+      filterA.Q.setTargetAtTime(q, now, 0.02);
+      this.formantBiquadsA.push(filterA);
 
-      // Create per-formant gain node
+      // Secondary biquad (4th-order only — same params, created but not connected)
+      const filterB = this.ctx.createBiquadFilter();
+      filterB.type = 'bandpass';
+      filterB.frequency.setTargetAtTime(freq, now, 0.02);
+      filterB.Q.setTargetAtTime(q, now, 0.02);
+      this.formantBiquadsB.push(filterB);
+
+      // Per-formant gain node (parallel mode only)
       const gainNode = this.ctx.createGain();
       gainNode.gain.setTargetAtTime(gain, now, 0.01);
       this.formantGains.push(gainNode);
-
-      // Wire: worklet --> filter --> gain --> sum
-      this.workletNode.connect(filter);
-      filter.connect(gainNode);
-      gainNode.connect(this.sumGain);
     }
+
+    // Wire in parallel topology by default
+    this.buildParallelChain();
+  }
+
+  /**
+   * Wire parallel topology: worklet fans out to each biquad -> gain -> sumGain.
+   * If 4th-order, B biquads are inserted between A and gain.
+   */
+  private buildParallelChain(): void {
+    if (!this.ctx || !this.workletNode || !this.sumGain || !this.masterGain) return;
+
+    // Disconnect all formant-related nodes
+    this.disconnectFormantNodes();
+
+    this.sumGain.connect(this.masterGain);
+
+    const fourthOrder = voiceParams.filterOrder === 4;
+    for (let i = 0; i < 5; i++) {
+      this.workletNode.connect(this.formantBiquadsA[i]);
+      if (fourthOrder) {
+        this.formantBiquadsA[i].connect(this.formantBiquadsB[i]);
+        this.formantBiquadsB[i].connect(this.formantGains[i]);
+      } else {
+        this.formantBiquadsA[i].connect(this.formantGains[i]);
+      }
+      this.formantGains[i].connect(this.sumGain);
+    }
+  }
+
+  /**
+   * Wire cascade topology: worklet -> biquadA[0] -> ... -> biquadA[4] -> makeupGain -> masterGain.
+   * If 4th-order, B biquads are inserted after each A biquad.
+   */
+  private buildCascadeChain(): void {
+    if (!this.ctx || !this.workletNode || !this.cascadeMakeupGain || !this.masterGain) return;
+
+    // Disconnect all formant-related nodes
+    this.disconnectFormantNodes();
+
+    const fourthOrder = voiceParams.filterOrder === 4;
+
+    // Wire in series: worklet -> A[0] [-> B[0]] -> A[1] [-> B[1]] -> ... -> makeupGain -> masterGain
+    let prevNode: AudioNode = this.workletNode;
+    for (let i = 0; i < 5; i++) {
+      prevNode.connect(this.formantBiquadsA[i]);
+      if (fourthOrder) {
+        this.formantBiquadsA[i].connect(this.formantBiquadsB[i]);
+        prevNode = this.formantBiquadsB[i];
+      } else {
+        prevNode = this.formantBiquadsA[i];
+      }
+    }
+    prevNode.connect(this.cascadeMakeupGain);
+    this.cascadeMakeupGain.connect(this.masterGain);
+  }
+
+  /**
+   * Disconnect all formant-related nodes so topology can be rewired.
+   */
+  private disconnectFormantNodes(): void {
+    if (this.workletNode) {
+      // Disconnect worklet from all formant biquads
+      try { this.workletNode.disconnect(); } catch { /* already disconnected */ }
+      // Re-connect to nothing — connections will be rebuilt
+    }
+    for (const f of this.formantBiquadsA) {
+      try { f.disconnect(); } catch { /* ok */ }
+    }
+    for (const f of this.formantBiquadsB) {
+      try { f.disconnect(); } catch { /* ok */ }
+    }
+    for (const g of this.formantGains) {
+      try { g.disconnect(); } catch { /* ok */ }
+    }
+    if (this.sumGain) {
+      try { this.sumGain.disconnect(); } catch { /* ok */ }
+    }
+    if (this.cascadeMakeupGain) {
+      try { this.cascadeMakeupGain.disconnect(); } catch { /* ok */ }
+    }
+  }
+
+  /**
+   * Switch filter topology with mute-crossfade (no clicks).
+   * Fades out over ~50ms, rewires graph, fades back in.
+   */
+  async switchTopology(newTopology: FilterTopology): Promise<void> {
+    if (!this.ctx || !this.masterGain) {
+      voiceParams.filterTopology = newTopology;
+      return;
+    }
+    const now = this.ctx.currentTime;
+    const prevGain = voiceParams.masterGain;
+
+    // Fade out over ~50ms
+    this.masterGain.gain.setTargetAtTime(0, now, 0.015);
+
+    setTimeout(() => {
+      voiceParams.filterTopology = newTopology;
+      if (newTopology === 'cascade') {
+        this.buildCascadeChain();
+      } else {
+        this.buildParallelChain();
+      }
+      this.syncParams();
+      if (this.ctx && this.masterGain) {
+        const t = this.ctx.currentTime;
+        const effectiveGain = (!voiceParams.playing || voiceParams.muted) ? 0 : prevGain;
+        this.masterGain.gain.setTargetAtTime(effectiveGain, t, 0.015);
+      }
+    }, 50);
+  }
+
+  /**
+   * Toggle filter order with mute-crossfade (no clicks).
+   * Rebuilds current topology chain with new order.
+   */
+  async toggleFilterOrder(newOrder: 2 | 4): Promise<void> {
+    if (!this.ctx || !this.masterGain) {
+      voiceParams.filterOrder = newOrder;
+      return;
+    }
+    const now = this.ctx.currentTime;
+    const prevGain = voiceParams.masterGain;
+
+    this.masterGain.gain.setTargetAtTime(0, now, 0.015);
+
+    setTimeout(() => {
+      voiceParams.filterOrder = newOrder;
+      if (voiceParams.filterTopology === 'cascade') {
+        this.buildCascadeChain();
+      } else {
+        this.buildParallelChain();
+      }
+      this.syncParams();
+      if (this.ctx && this.masterGain) {
+        const t = this.ctx.currentTime;
+        const effectiveGain = (!voiceParams.playing || voiceParams.muted) ? 0 : prevGain;
+        this.masterGain.gain.setTargetAtTime(effectiveGain, t, 0.015);
+      }
+    }, 50);
   }
 
   /**
@@ -136,7 +280,7 @@ export class AudioBridge {
    * Uses setTargetAtTime for all AudioParam changes (AUDIO-06).
    */
   syncParams(): void {
-    if (!this.ctx || !this.workletNode || this.formants.length === 0 || !this.masterGain) return;
+    if (!this.ctx || !this.workletNode || this.formantBiquadsA.length === 0 || !this.masterGain) return;
 
     const now = this.ctx.currentTime;
 
@@ -150,13 +294,22 @@ export class AudioBridge {
     ];
 
     // Time constant for formant frequency/Q smoothing (STRAT-03: smooth transitions)
-    // 60ms gives audibly smooth glides during strategy changes and passaggio transitions
     const formantTC = 0.06;
+    const isCascade = voiceParams.filterTopology === 'cascade';
     for (let i = 0; i < 5; i++) {
       const { freq, bw, gain } = formantData[i];
-      this.formants[i].frequency.setTargetAtTime(freq, now, formantTC);
-      this.formants[i].Q.setTargetAtTime(bandwidthToQ(freq, bw), now, formantTC);
-      this.formantGains[i].gain.setTargetAtTime(gain, now, 0.01);
+      const q = bandwidthToQ(freq, bw);
+
+      // Always update both A and B biquads (keep B in sync even when disconnected)
+      this.formantBiquadsA[i].frequency.setTargetAtTime(freq, now, formantTC);
+      this.formantBiquadsA[i].Q.setTargetAtTime(q, now, formantTC);
+      this.formantBiquadsB[i].frequency.setTargetAtTime(freq, now, formantTC);
+      this.formantBiquadsB[i].Q.setTargetAtTime(q, now, formantTC);
+
+      // Per-formant gains only apply in parallel mode
+      if (!isCascade) {
+        this.formantGains[i].gain.setTargetAtTime(gain, now, 0.01);
+      }
     }
 
     // Mute or stopped: gain 0. Volume slider position preserved in store (D-14).
@@ -253,11 +406,18 @@ export class AudioBridge {
       this.workletNode.disconnect();
       this.workletNode = null;
     }
-    for (const filter of this.formants) {
+    for (const filter of this.formantBiquadsA) {
+      filter.disconnect();
+    }
+    for (const filter of this.formantBiquadsB) {
       filter.disconnect();
     }
     for (const gain of this.formantGains) {
       gain.disconnect();
+    }
+    if (this.cascadeMakeupGain) {
+      this.cascadeMakeupGain.disconnect();
+      this.cascadeMakeupGain = null;
     }
     if (this.sumGain) {
       this.sumGain.disconnect();
@@ -283,7 +443,8 @@ export class AudioBridge {
       await this.ctx.close();
       this.ctx = null;
     }
-    this.formants = [];
+    this.formantBiquadsA = [];
+    this.formantBiquadsB = [];
     this.formantGains = [];
     this.initialized = false;
   }
