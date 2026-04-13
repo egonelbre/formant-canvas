@@ -65,6 +65,7 @@
     glottalModel={voiceParams.glottalModel}
     rd={voiceParams.rd}
     f0={voiceParams.f0}
+    {expertMode}
   />
 
   {#if expertMode}
