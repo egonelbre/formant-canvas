@@ -50,7 +50,10 @@ Plans:
   1. User can switch between parallel and cascade formant filter topologies and hear the difference in vowel quality
   2. In cascade mode, changing F1 frequency automatically affects the relative amplitudes of higher formants (Klatt 1980 behavior) without user adjustment
   3. User can enable higher-order resonances (4th-order) for sharper formant peaks and hear the increased selectivity
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 07-01-PLAN.md — Cascade envelope math (TDD), types, and VoiceParams state fields
+- [ ] 07-02-PLAN.md — AudioBridge cascade wiring, UI controls, visualization updates
 
 ### Phase 8: Extended Filter Chain
 **Goal**: Users can shape the voice with higher formants, nasality, and improved noise characteristics
@@ -83,7 +86,7 @@ Plans:
 | 4. Vocal Strategies | v0.1 | 4/4 | Complete | 2026-04-12 |
 | 5. Pedagogy UI & Polish | v0.1 | 4/4 | Complete | 2026-04-12 |
 | 6. LF Glottal Model | v0.2 | 0/3 | Planning complete | - |
-| 7. Cascade Formant Filters | v0.2 | 0/0 | Not started | - |
+| 7. Cascade Formant Filters | v0.2 | 0/2 | Planning complete | - |
 | 8. Extended Filter Chain | v0.2 | 0/0 | Not started | - |
 | 9. Vocal Tract Visualization | v0.2 | 0/0 | Not started | - |
 
