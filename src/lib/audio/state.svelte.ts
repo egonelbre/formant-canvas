@@ -1,4 +1,4 @@
-import type { FormantParams, GlottalModel, PhonationMode } from '../types.ts';
+import type { FormantParams, GlottalModel, PhonationMode, FilterTopology, FilterOrder } from '../types.ts';
 import type { R1Strategy, R2Strategy, StrategyMode } from '../strategies/types.ts';
 
 /**
@@ -40,6 +40,10 @@ export class VoiceParams {
   glottalModel = $state<GlottalModel>('lf');
   rd = $state(1.0);               // LF Rd parameter [0.3, 2.7], default 1.0 per D-05
 
+  // Filter topology (Phase 7)
+  filterTopology = $state<FilterTopology>('parallel');
+  filterOrder = $state<FilterOrder>(2);
+
   // Transport (D-14)
   muted = $state(false);
 
@@ -68,6 +72,7 @@ export class VoiceParams {
       vibratoExtent: this.vibratoExtent, jitterAmount: this.jitterAmount,
       spectralTilt: this.spectralTilt, muted: this.muted,
       glottalModel: this.glottalModel, rd: this.rd,
+      filterTopology: this.filterTopology, filterOrder: this.filterOrder,
     };
   }
 

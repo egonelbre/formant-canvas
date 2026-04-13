@@ -15,6 +15,9 @@ export type PhonationMode = 'breathy' | 'modal' | 'flow' | 'pressed';
 
 export type GlottalModel = 'rosenberg' | 'lf';
 
+export type FilterTopology = 'parallel' | 'cascade';
+export type FilterOrder = 2 | 4;
+
 export interface PhonationPreset {
   label: string;
   openQuotient: number;

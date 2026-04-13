@@ -1,4 +1,4 @@
-import type { FormantParams } from '../../types.ts';
+import type { FormantParams, FilterTopology, FilterOrder } from '../../types.ts';
 
 /**
  * Evaluate the magnitude response of a single formant (bandpass resonator)
@@ -34,6 +34,64 @@ export function spectralEnvelope(freq: number, formants: FormantParams[]): numbe
   let sum = 0;
   for (const f of formants) {
     sum += formantMagnitude(freq, f);
+  }
+  return sum;
+}
+
+/**
+ * Evaluate cascade spectral envelope at a frequency across all formants.
+ * In cascade topology, formants are chained in series, so the overall
+ * transfer function is the product of individual transfer functions.
+ * Uses gain=1 (shape-only) so the cascade product gives relative response.
+ *
+ * @param freq - Probe frequency in Hz
+ * @param formants - Array of formant parameters
+ * @param order - Filter order: 2 (default) or 4 (squares each magnitude)
+ * @returns Product of shape magnitudes from all formants
+ */
+export function cascadeEnvelope(
+  freq: number,
+  formants: FormantParams[],
+  order: FilterOrder = 2,
+): number {
+  let product = 1;
+  for (const f of formants) {
+    const mag = formantMagnitude(freq, { freq: f.freq, bw: f.bw, gain: 1 });
+    if (order === 4) {
+      product *= mag * mag;
+    } else {
+      product *= mag;
+    }
+  }
+  return product;
+}
+
+/**
+ * Evaluate spectral envelope using the specified filter topology.
+ * Dispatches to either parallel (sum) or cascade (product) computation.
+ *
+ * @param freq - Probe frequency in Hz
+ * @param formants - Array of formant parameters
+ * @param topology - 'parallel' (sum) or 'cascade' (product)
+ * @param order - Filter order: 2 (default) or 4 (squares each magnitude)
+ * @returns Envelope amplitude at the given frequency
+ */
+export function topologyAwareEnvelope(
+  freq: number,
+  formants: FormantParams[],
+  topology: FilterTopology,
+  order: FilterOrder = 2,
+): number {
+  if (topology === 'cascade') {
+    return cascadeEnvelope(freq, formants, order);
+  }
+  let sum = 0;
+  for (const f of formants) {
+    let mag = formantMagnitude(freq, f);
+    if (order === 4) {
+      mag = mag * mag;
+    }
+    sum += mag;
   }
   return sum;
 }

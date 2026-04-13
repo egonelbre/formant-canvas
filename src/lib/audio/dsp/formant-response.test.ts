@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formantMagnitude, spectralEnvelope } from './formant-response.ts';
+import { formantMagnitude, spectralEnvelope, cascadeEnvelope, topologyAwareEnvelope } from './formant-response.ts';
 import type { FormantParams } from '../../types.ts';
 
 describe('formantMagnitude', () => {
@@ -60,5 +60,68 @@ describe('spectralEnvelope', () => {
     const between = spectralEnvelope(1000, [f1, f2]);
     expect(atF1).toBeGreaterThan(between);
     expect(atF2).toBeGreaterThan(between);
+  });
+});
+
+describe('cascadeEnvelope', () => {
+  const f1: FormantParams = { freq: 500, bw: 100, gain: 1.0 };
+  const f2: FormantParams = { freq: 1500, bw: 120, gain: 0.7 };
+
+  it('returns 1.0 for single formant at center freq (shape-only, gain=1)', () => {
+    expect(cascadeEnvelope(500, [f1])).toBeCloseTo(1.0, 6);
+  });
+
+  it('returns product of shape magnitudes for two formants', () => {
+    const result = cascadeEnvelope(500, [f1, f2]);
+    const expectedF2Mag = 1 / Math.sqrt(1 + ((500 - 1500) / 60) ** 2);
+    expect(result).toBeCloseTo(1.0 * expectedF2Mag, 4);
+  });
+
+  it('returns 1 for empty formants (multiplicative identity)', () => {
+    expect(cascadeEnvelope(500, [])).toBe(1);
+  });
+
+  it('returns 1.0 for order=4 single formant at center', () => {
+    expect(cascadeEnvelope(500, [f1], 4)).toBeCloseTo(1.0, 6);
+  });
+
+  it('squares magnitude for order=4 at half-bandwidth offset', () => {
+    expect(cascadeEnvelope(550, [f1], 4)).toBeCloseTo(0.5, 4);
+  });
+
+  it('cascade product < parallel sum between formant centers', () => {
+    const freq = 1000;
+    const formants: FormantParams[] = [
+      { freq: 500, bw: 100, gain: 1.0 },
+      { freq: 1500, bw: 120, gain: 1.0 },
+    ];
+    const cascade = cascadeEnvelope(freq, formants);
+    const parallel = spectralEnvelope(freq, formants);
+    expect(cascade).toBeLessThan(parallel);
+  });
+});
+
+describe('topologyAwareEnvelope', () => {
+  const f1: FormantParams = { freq: 500, bw: 100, gain: 1.0 };
+  const f2: FormantParams = { freq: 1500, bw: 120, gain: 0.7 };
+  const formants = [f1, f2];
+
+  it('parallel topology matches spectralEnvelope for same inputs', () => {
+    const freq = 800;
+    const topo = topologyAwareEnvelope(freq, formants, 'parallel');
+    const ref = spectralEnvelope(freq, formants);
+    expect(topo).toBeCloseTo(ref, 6);
+  });
+
+  it('cascade topology matches cascadeEnvelope for same inputs', () => {
+    const freq = 800;
+    const topo = topologyAwareEnvelope(freq, formants, 'cascade');
+    const ref = cascadeEnvelope(freq, formants);
+    expect(topo).toBeCloseTo(ref, 6);
+  });
+
+  it('parallel order=4 squares each magnitude before summing', () => {
+    const result = topologyAwareEnvelope(550, [f1], 'parallel', 4);
+    expect(result).toBeCloseTo(0.5, 4);
   });
 });
