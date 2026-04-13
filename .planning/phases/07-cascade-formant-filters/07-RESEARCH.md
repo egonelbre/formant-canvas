@@ -334,7 +334,7 @@ async switchTopology(newTopology: 'parallel' | 'cascade'): Promise<void> {
 | A3 | Creating BiquadFilterNode during playback can cause glitches | Architecture Patterns | If false, could create/destroy on toggle instead of pre-creating; low risk either way |
 | A4 | 4th-order parallel should square each formant magnitude before summing for visualization | Code Examples | Visual might not match audio; fix: verify against actual BiquadFilterNode frequency response |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Cascade makeup gain value**
    - What we know: Cascade will be quieter than parallel at default settings because product < sum for off-peak frequencies
