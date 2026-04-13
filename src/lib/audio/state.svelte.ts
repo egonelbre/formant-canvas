@@ -37,7 +37,7 @@ export class VoiceParams {
   spectralTilt = $state(6);       // dB attenuation at 3 kHz (0-24)
 
   // Glottal model (Phase 6)
-  glottalModel = $state<GlottalModel>('rosenberg');
+  glottalModel = $state<GlottalModel>('lf');
   rd = $state(1.0);               // LF Rd parameter [0.3, 2.7], default 1.0 per D-05
 
   // Transport (D-14)

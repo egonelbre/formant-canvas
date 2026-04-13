@@ -431,7 +431,7 @@ class GlottalProcessor extends AudioWorkletProcessor {
   private tiltCoeffsNeedUpdate: boolean = true;
 
   // LF model state (Phase 6)
-  private glottalModel: 'rosenberg' | 'lf' = 'rosenberg';
+  private glottalModel: 'rosenberg' | 'lf' = 'lf';
   private rd: number = 1.0;
   private rdTarget: number = 1.0;
   private rdSmooth: number = 0;           // one-pole coefficient, same pattern as f0Smooth
@@ -594,8 +594,29 @@ class GlottalProcessor extends AudioWorkletProcessor {
       const tiltedGlottal = applyTiltSample(glottal, this.tiltPrevOutput, this.tiltA, this.tiltB);
       this.tiltPrevOutput = tiltedGlottal;
 
-      // Mix aspiration noise (per D-02)
-      const noise = (Math.random() * 2 - 1) * this.aspirationLevel;
+      // Mix aspiration noise — modulated by glottal phase
+      // In LF mode, noise is strongest during the open phase (0 to Te/T0)
+      // and silent during the closed phase, matching physical voice production.
+      // In Rosenberg mode, noise is modulated by the open quotient similarly.
+      let noiseEnv: number;
+      if (this.glottalModel === 'lf') {
+        // Compute Te/T0 from current Rd (cheap — just the Fant 1995 ratios)
+        const rd = Math.max(0.3, Math.min(2.7, this.rd));
+        const Rk = (22.4 + 11.8 * rd) / 100;
+        const Rg = (0.44 * rd + 1.073) / (1.0 + 0.46 * rd);
+        const TpNorm = 1 / (2 * Rg); // Tp / T0
+        const TeNorm = TpNorm * (1 + Rk); // Te / T0
+        // Half-sine envelope over the open phase, zero in closed phase
+        noiseEnv = this.phase < TeNorm
+          ? Math.sin(Math.PI * this.phase / TeNorm)
+          : 0;
+      } else {
+        // Rosenberg: noise during open phase
+        noiseEnv = this.phase < this.openQuotient
+          ? Math.sin(Math.PI * this.phase / this.openQuotient)
+          : 0;
+      }
+      const noise = (Math.random() * 2 - 1) * this.aspirationLevel * noiseEnv;
       channel[i] = tiltedGlottal + noise;
 
       // Advance phase — use Math.floor to handle phaseIncrement > 1 (WR-05)
