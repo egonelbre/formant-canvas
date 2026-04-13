@@ -231,12 +231,27 @@
           compression. This produces a strained, intense quality with strong higher harmonics, used
           for emphasis or emotional intensity.</li>
         </ul>
+        <h2>Glottal models</h2>
+        <p>
+          Two voice source models are available:
+        </p>
+        <ul>
+          <li><strong>Rosenberg:</strong> A simple glottal pulse model with direct control over
+          Open Quotient and Spectral Tilt. Good for basic exploration.</li>
+          <li><strong>LF (Liljencrants-Fant):</strong> A research-standard glottal model that
+          captures the full shape of the glottal flow derivative. Controlled by a single
+          <strong>Rd</strong> parameter (0.3&ndash;2.7) that smoothly varies voice quality from
+          pressed to breathy. Lower Rd values produce a sharper, more pressed voice; higher values
+          produce a softer, breathier quality.</li>
+        </ul>
         <h2>Expert parameters</h2>
         <p>
-          In expert mode, you can fine-tune the source signal: <strong>Open Quotient</strong> controls
-          what fraction of each glottal cycle the folds are open; <strong>Spectral Tilt</strong>
-          controls how quickly harmonics decrease in amplitude; and <strong>Aspiration</strong> adds
-          turbulent noise to the signal.
+          In expert mode, you can fine-tune the source signal. With <strong>Rosenberg</strong>:
+          <strong>Open Quotient</strong> controls what fraction of each glottal cycle the folds
+          are open, and <strong>Spectral Tilt</strong> controls how quickly harmonics decrease
+          in amplitude. With <strong>LF</strong>: the <strong>Rd</strong> slider controls voice
+          quality, and the pulse visual shows timing markers (Tp, Te, Ta) and the underlying
+          R-parameters (Ra, Rk, Rg). <strong>Aspiration</strong> adds turbulent noise in both models.
         </p>
       </HelpDialog>
       <PhonationMode {expertMode} />
