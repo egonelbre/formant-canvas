@@ -20,6 +20,9 @@ export class AudioBridge {
   private formantGains: GainNode[] = [];
   private sumGain: GainNode | null = null;
   private masterGain: GainNode | null = null;
+  private dryGain: GainNode | null = null;
+  private wetGain: GainNode | null = null;
+  private convolver: ConvolverNode | null = null;
   private initialized = false;
 
   /**
@@ -63,7 +66,25 @@ export class AudioBridge {
     // Master volume control
     this.masterGain = this.ctx.createGain();
     this.masterGain.gain.setTargetAtTime(voiceParams.masterGain, now, 0.01);
-    this.masterGain.connect(this.ctx.destination);
+
+    // Reverb: dry/wet send from masterGain
+    this.dryGain = this.ctx.createGain();
+    this.dryGain.gain.setTargetAtTime(0.85, now, 0.01);
+
+    this.wetGain = this.ctx.createGain();
+    this.wetGain.gain.setTargetAtTime(0.15, now, 0.01);
+
+    this.convolver = this.ctx.createConvolver();
+    this.convolver.buffer = this.generateReverbIR(this.ctx, 1.2, 2.5);
+
+    // masterGain --> dryGain --> destination
+    //           \-> convolver --> wetGain --> destination
+    this.masterGain.connect(this.dryGain);
+    this.dryGain.connect(this.ctx.destination);
+    this.masterGain.connect(this.convolver);
+    this.convolver.connect(this.wetGain);
+    this.wetGain.connect(this.ctx.destination);
+
     this.sumGain.connect(this.masterGain);
 
     // Default formant values: male /a/ (per D-01)
@@ -209,6 +230,22 @@ export class AudioBridge {
   }
 
   /**
+   * Generate a synthetic reverb impulse response.
+   * Exponentially decaying noise — simple but effective for a small room feel.
+   */
+  private generateReverbIR(ctx: AudioContext, duration: number, decay: number): AudioBuffer {
+    const length = Math.floor(ctx.sampleRate * duration);
+    const buffer = ctx.createBuffer(2, length, ctx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const data = buffer.getChannelData(ch);
+      for (let i = 0; i < length; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate / decay));
+      }
+    }
+    return buffer;
+  }
+
+  /**
    * Close the AudioContext and clean up all nodes.
    */
   async destroy(): Promise<void> {
@@ -225,6 +262,18 @@ export class AudioBridge {
     if (this.sumGain) {
       this.sumGain.disconnect();
       this.sumGain = null;
+    }
+    if (this.convolver) {
+      this.convolver.disconnect();
+      this.convolver = null;
+    }
+    if (this.dryGain) {
+      this.dryGain.disconnect();
+      this.dryGain = null;
+    }
+    if (this.wetGain) {
+      this.wetGain.disconnect();
+      this.wetGain = null;
     }
     if (this.masterGain) {
       this.masterGain.disconnect();
