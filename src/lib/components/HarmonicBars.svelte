@@ -1,6 +1,6 @@
 <script lang="ts">
   import { voiceParams } from '../audio/state.svelte.ts';
-  import { spectralEnvelope } from '../audio/dsp/formant-response.ts';
+  import { topologyAwareEnvelope } from '../audio/dsp/formant-response.ts';
 
   interface Props {
     freqToX: (freq: number) => number;
@@ -22,7 +22,7 @@
     for (let n = 1; n <= 48; n++) {
       const freq = f0 * n;
       if (freq > MAX_FREQ) break;
-      const amplitude = spectralEnvelope(freq, formants);
+      const amplitude = topologyAwareEnvelope(freq, formants, voiceParams.filterTopology, voiceParams.filterOrder);
       harmonics.push({ n, freq, amplitude });
     }
 

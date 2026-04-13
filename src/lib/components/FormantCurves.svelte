@@ -1,7 +1,7 @@
 <script lang="ts">
   import { tweened } from 'svelte/motion';
   import { voiceParams } from '../audio/state.svelte.ts';
-  import { formantMagnitude } from '../audio/dsp/formant-response.ts';
+  import { formantMagnitude, topologyAwareEnvelope } from '../audio/dsp/formant-response.ts';
 
   interface Props {
     freqToX: (freq: number) => number;
@@ -19,9 +19,11 @@
   const MAX_FREQ = 5000;
   const SAMPLE_COUNT = 200;
 
-  // Compute response curves -- only recompute when formant params change
+  // Compute response curves -- topology-aware
   let curveData = $derived.by(() => {
     const formants = voiceParams.formants;
+    const topology = voiceParams.filterTopology;
+    const order = voiceParams.filterOrder;
 
     // Sample frequencies linearly across range
     const freqs: number[] = [];
@@ -29,36 +31,55 @@
       freqs.push(MIN_FREQ + (i / (SAMPLE_COUNT - 1)) * (MAX_FREQ - MIN_FREQ));
     }
 
-    // Compute magnitude for each formant at each frequency
     const curves: { points: { x: number; y: number }[]; color: string; label: string }[] = [];
 
-    // Find global max across all formants and frequencies for normalization
-    let globalMax = 0;
-    const allAmplitudes: number[][] = [];
-    for (let fi = 0; fi < formants.length; fi++) {
+    if (topology === 'cascade') {
+      // Cascade: single combined envelope curve (product of all formants)
       const amps: number[] = [];
+      let maxAmp = 0;
       for (const freq of freqs) {
-        const amp = formantMagnitude(freq, formants[fi]);
+        const amp = topologyAwareEnvelope(freq, formants, 'cascade', order);
         amps.push(amp);
-        if (amp > globalMax) globalMax = amp;
+        if (amp > maxAmp) maxAmp = amp;
       }
-      allAmplitudes.push(amps);
-    }
-    if (globalMax === 0) globalMax = 1;
+      if (maxAmp === 0) maxAmp = 1;
 
-    // Build path points for each formant
-    for (let fi = 0; fi < formants.length; fi++) {
       const points: { x: number; y: number }[] = [];
       for (let i = 0; i < SAMPLE_COUNT; i++) {
         const x = freqToX(freqs[i]);
-        const y = regionBottom - (allAmplitudes[fi][i] / globalMax) * curveRegionHeight;
+        const y = regionBottom - (amps[i] / maxAmp) * curveRegionHeight;
         points.push({ x, y });
       }
-      curves.push({
-        points,
-        color: FORMANT_COLORS[fi],
-        label: FORMANT_LABELS[fi],
-      });
+      curves.push({ points, color: '#ffffff', label: 'Cascade' });
+    } else {
+      // Parallel: individual per-formant curves
+      let globalMax = 0;
+      const allAmplitudes: number[][] = [];
+      for (let fi = 0; fi < formants.length; fi++) {
+        const amps: number[] = [];
+        for (const freq of freqs) {
+          let amp = formantMagnitude(freq, formants[fi]);
+          if (order === 4) amp = amp * amp;
+          amps.push(amp);
+          if (amp > globalMax) globalMax = amp;
+        }
+        allAmplitudes.push(amps);
+      }
+      if (globalMax === 0) globalMax = 1;
+
+      for (let fi = 0; fi < formants.length; fi++) {
+        const points: { x: number; y: number }[] = [];
+        for (let i = 0; i < SAMPLE_COUNT; i++) {
+          const x = freqToX(freqs[i]);
+          const y = regionBottom - (allAmplitudes[fi][i] / globalMax) * curveRegionHeight;
+          points.push({ x, y });
+        }
+        curves.push({
+          points,
+          color: FORMANT_COLORS[fi],
+          label: FORMANT_LABELS[fi],
+        });
+      }
     }
 
     return curves;

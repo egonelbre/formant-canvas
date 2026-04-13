@@ -1,6 +1,8 @@
 <script lang="ts">
   import { audioBridge } from './lib/audio/bridge.ts';
   import { voiceParams } from './lib/audio/state.svelte.ts';
+  import type { FilterTopology } from './lib/types.ts';
+  import ChipGroup from './lib/components/ChipGroup.svelte';
   import { QWERTY_MAP } from './lib/data/qwerty-map.ts';
   import { midiToHz } from './lib/audio/dsp/pitch-utils.ts';
   import TransportBar from './lib/components/TransportBar.svelte';
@@ -110,6 +112,10 @@
     }
   }
 
+  function handleTopologySwitch(key: string) {
+    audioBridge.switchTopology(key as FilterTopology);
+  }
+
   function toggleFullscreen() {
     if (document.fullscreenElement) {
       document.exitFullscreen();
@@ -193,6 +199,16 @@
             </p>
           </HelpDialog>
           <h2 class="section-heading">Formants</h2>
+          <ChipGroup
+            options={[{ key: 'parallel', label: 'Parallel' }, { key: 'cascade', label: 'Cascade' }]}
+            selected={voiceParams.filterTopology}
+            onselect={handleTopologySwitch}
+          />
+          <label class="toggle-row">
+            <span class="toggle-label">4th-order</span>
+            <input type="checkbox" checked={voiceParams.filterOrder === 4}
+              onchange={() => audioBridge.toggleFilterOrder(voiceParams.filterOrder === 4 ? 2 : 4)} />
+          </label>
           <div class="formant-readouts">
             <span class="readout">R1: {Math.round(voiceParams.f1Freq)} Hz</span>
             <span class="readout">R2: {Math.round(voiceParams.f2Freq)} Hz</span>
@@ -527,6 +543,18 @@
   .formant-readouts {
     display: flex;
     gap: var(--spacing-sm);
+  }
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-size: 13px;
+    color: var(--color-text);
+    cursor: pointer;
+    user-select: none;
+  }
+  .toggle-row .toggle-label {
+    font-weight: 400;
   }
   .formant-readouts .readout {
     font-family: monospace;
