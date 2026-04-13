@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formantMagnitude, spectralEnvelope, cascadeEnvelope, topologyAwareEnvelope } from './formant-response.ts';
+import { formantMagnitude, spectralEnvelope, cascadeEnvelope, topologyAwareEnvelope, FOURTH_ORDER_BW_FACTOR } from './formant-response.ts';
 import type { FormantParams } from '../../types.ts';
 
 describe('formantMagnitude', () => {
@@ -85,8 +85,14 @@ describe('cascadeEnvelope', () => {
     expect(cascadeEnvelope(500, [f1], 4)).toBeCloseTo(1.0, 6);
   });
 
-  it('squares magnitude for order=4 at half-bandwidth offset', () => {
-    expect(cascadeEnvelope(550, [f1], 4)).toBeCloseTo(0.5, 4);
+  it('squares magnitude for order=4 at half-bandwidth offset (compensated BW)', () => {
+    // With BW compensation: effectiveBW = 100 * FOURTH_ORDER_BW_FACTOR
+    // At 550 Hz (50 Hz from center): halfBW = effectiveBW/2, x = 50/halfBW
+    // mag = 1/sqrt(1+x^2), result = mag^2
+    const halfBW = (100 * FOURTH_ORDER_BW_FACTOR) / 2;
+    const x = 50 / halfBW;
+    const mag = 1 / Math.sqrt(1 + x * x);
+    expect(cascadeEnvelope(550, [f1], 4)).toBeCloseTo(mag * mag, 4);
   });
 
   it('cascade product < parallel sum between formant centers', () => {
@@ -120,8 +126,12 @@ describe('topologyAwareEnvelope', () => {
     expect(topo).toBeCloseTo(ref, 6);
   });
 
-  it('parallel order=4 squares each magnitude before summing', () => {
+  it('parallel order=4 uses compensated BW and squares magnitudes', () => {
+    // Same compensation as cascadeEnvelope order=4 test
+    const halfBW = (100 * FOURTH_ORDER_BW_FACTOR) / 2;
+    const x = 50 / halfBW;
+    const mag = f1.gain / Math.sqrt(1 + x * x);
     const result = topologyAwareEnvelope(550, [f1], 'parallel', 4);
-    expect(result).toBeCloseTo(0.5, 4);
+    expect(result).toBeCloseTo(mag * mag, 4);
   });
 });

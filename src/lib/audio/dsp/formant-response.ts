@@ -1,6 +1,13 @@
 import type { FormantParams, FilterTopology, FilterOrder } from '../../types.ts';
 
 /**
+ * Bandwidth compensation factor for 4th-order (two cascaded 2nd-order) filters.
+ * Two identical bandpass filters in series narrow the -3dB bandwidth by √(√2 - 1).
+ * To maintain the same effective bandwidth, widen each filter's bandwidth by 1/this factor.
+ */
+export const FOURTH_ORDER_BW_FACTOR = 1 / Math.sqrt(Math.sqrt(2) - 1);
+
+/**
  * Evaluate the magnitude response of a single formant (bandpass resonator)
  * at a given frequency. Uses the standard second-order bandpass approximation.
  *
@@ -56,7 +63,8 @@ export function cascadeEnvelope(
 ): number {
   let product = 1;
   for (const f of formants) {
-    const mag = formantMagnitude(freq, { freq: f.freq, bw: f.bw, gain: 1 });
+    const bw = order === 4 ? f.bw * FOURTH_ORDER_BW_FACTOR : f.bw;
+    const mag = formantMagnitude(freq, { freq: f.freq, bw, gain: 1 });
     if (order === 4) {
       product *= mag * mag;
     } else {
@@ -69,6 +77,10 @@ export function cascadeEnvelope(
 /**
  * Evaluate spectral envelope using the specified filter topology.
  * Dispatches to either parallel (sum) or cascade (product) computation.
+ *
+ * For 4th-order: uses compensated bandwidth (FOURTH_ORDER_BW_FACTOR) so the
+ * squared response of two wider filters matches the effective bandwidth of a
+ * single 2nd-order filter with the original bandwidth.
  *
  * @param freq - Probe frequency in Hz
  * @param formants - Array of formant parameters
@@ -87,7 +99,8 @@ export function topologyAwareEnvelope(
   }
   let sum = 0;
   for (const f of formants) {
-    let mag = formantMagnitude(freq, f);
+    const bw = order === 4 ? f.bw * FOURTH_ORDER_BW_FACTOR : f.bw;
+    let mag = formantMagnitude(freq, { ...f, bw });
     if (order === 4) {
       mag = mag * mag;
     }

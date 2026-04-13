@@ -1,7 +1,7 @@
 <script lang="ts">
   import { tweened } from 'svelte/motion';
   import { voiceParams } from '../audio/state.svelte.ts';
-  import { formantMagnitude, topologyAwareEnvelope } from '../audio/dsp/formant-response.ts';
+  import { formantMagnitude, topologyAwareEnvelope, FOURTH_ORDER_BW_FACTOR } from '../audio/dsp/formant-response.ts';
 
   interface Props {
     freqToX: (freq: number) => number;
@@ -50,15 +50,19 @@
         const y = regionBottom - (amps[i] / maxAmp) * curveRegionHeight;
         points.push({ x, y });
       }
-      curves.push({ points, color: '#ffffff', label: 'Cascade' });
+      curves.push({ points, color: '#67e8f9', label: 'Cascade' });
     } else {
       // Parallel: individual per-formant curves
       let globalMax = 0;
       const allAmplitudes: number[][] = [];
       for (let fi = 0; fi < formants.length; fi++) {
         const amps: number[] = [];
+        // In 4th-order, use compensated bandwidth so visualization matches audio
+        const f = order === 4
+          ? { ...formants[fi], bw: formants[fi].bw * FOURTH_ORDER_BW_FACTOR }
+          : formants[fi];
         for (const freq of freqs) {
-          let amp = formantMagnitude(freq, formants[fi]);
+          let amp = formantMagnitude(freq, f);
           if (order === 4) amp = amp * amp;
           amps.push(amp);
           if (amp > globalMax) globalMax = amp;

@@ -1,4 +1,5 @@
 import { bandwidthToQ } from './dsp/formant-utils.ts';
+import { FOURTH_ORDER_BW_FACTOR } from './dsp/formant-response.ts';
 import { voiceParams } from './state.svelte.ts';
 import type { GlottalModel } from '../types.ts';
 import glottalProcessorUrl from './worklet/glottal-processor.ts?worker&url';
@@ -223,9 +224,13 @@ export class AudioBridge {
 
     // Time constant for formant frequency/Q smoothing (STRAT-03: smooth transitions)
     const formantTC = 0.06;
+    const fourthOrder = voiceParams.filterOrder === 4;
     for (let i = 0; i < 5; i++) {
       const { freq, bw, gain } = formantData[i];
-      const q = bandwidthToQ(freq, bw);
+      // In 4th-order mode, widen each filter's bandwidth so the cascade of two
+      // produces the same effective -3dB bandwidth as a single 2nd-order filter.
+      const effectiveBW = fourthOrder ? bw * FOURTH_ORDER_BW_FACTOR : bw;
+      const q = bandwidthToQ(freq, effectiveBW);
 
       // Update both A and B biquads (keep B in sync even when disconnected)
       this.formantBiquadsA[i].frequency.setTargetAtTime(freq, now, formantTC);
