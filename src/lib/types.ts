@@ -13,11 +13,14 @@ export interface VowelTarget {
 
 export type PhonationMode = 'breathy' | 'modal' | 'flow' | 'pressed';
 
+export type GlottalModel = 'rosenberg' | 'lf';
+
 export interface PhonationPreset {
   label: string;
   openQuotient: number;
   aspirationLevel: number;
   spectralTilt: number;
+  rd: number;
 }
 
 export interface VoicePreset {

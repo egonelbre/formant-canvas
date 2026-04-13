@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { AudioBridge } from './lib/audio/bridge.ts';
+  import { audioBridge } from './lib/audio/bridge.ts';
   import { voiceParams } from './lib/audio/state.svelte.ts';
   import { QWERTY_MAP } from './lib/data/qwerty-map.ts';
   import { midiToHz } from './lib/audio/dsp/pitch-utils.ts';
@@ -27,7 +27,7 @@
     localStorage.setItem('expertMode', String(expertMode));
   });
 
-  const bridge = new AudioBridge();
+  const bridge = audioBridge;
   let bridgeInitialized = $state(false);
 
   let pressedKeys = $state(new Set<string>());

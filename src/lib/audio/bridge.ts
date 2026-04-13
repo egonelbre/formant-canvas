@@ -1,5 +1,6 @@
 import { bandwidthToQ } from './dsp/formant-utils.ts';
 import { voiceParams } from './state.svelte.ts';
+import type { GlottalModel } from '../types.ts';
 import glottalProcessorUrl from './worklet/glottal-processor.ts?worker&url';
 
 /**
@@ -141,7 +142,7 @@ export class AudioBridge {
     const effectiveGain = (!voiceParams.playing || voiceParams.muted) ? 0 : voiceParams.masterGain;
     this.masterGain.gain.setTargetAtTime(effectiveGain, now, 0.005);
 
-    // Forward worklet params via postMessage (f0, aspiration, OQ, vibrato, jitter, tilt)
+    // Forward worklet params via postMessage (f0, aspiration, OQ, vibrato, jitter, tilt, model, rd)
     this.workletNode.port.postMessage({
       type: 'params',
       f0: voiceParams.f0,
@@ -151,6 +152,8 @@ export class AudioBridge {
       vibratoExtent: voiceParams.vibratoExtent,
       jitterAmount: voiceParams.jitterAmount,
       spectralTilt: voiceParams.spectralTilt,
+      glottalModel: voiceParams.glottalModel,
+      rd: voiceParams.rd,
     });
   }
 
@@ -174,6 +177,35 @@ export class AudioBridge {
     const now = this.ctx.currentTime;
     // Fast ramp to 0 to avoid click
     this.masterGain.gain.setTargetAtTime(0, now, 0.005);
+  }
+
+  /**
+   * Switch glottal model with mute-crossfade (D-02).
+   * Fades out over ~50ms, swaps model, fades back in.
+   * This is the ONLY path for model changes — UI must not set voiceParams.glottalModel directly.
+   */
+  async switchModel(newModel: GlottalModel): Promise<void> {
+    if (!this.ctx || !this.masterGain || !this.workletNode) {
+      // Not initialized yet — just set the state directly
+      voiceParams.glottalModel = newModel;
+      return;
+    }
+    const now = this.ctx.currentTime;
+    const prevGain = voiceParams.masterGain;
+
+    // Fade out over ~50ms (timeConstant ~0.015 gives 3*tau = 45ms to ~95% attenuation)
+    this.masterGain.gain.setTargetAtTime(0, now, 0.015);
+
+    // After 50ms, send model switch and fade back in
+    setTimeout(() => {
+      voiceParams.glottalModel = newModel;
+      this.syncParams();
+      if (this.ctx && this.masterGain) {
+        const t = this.ctx.currentTime;
+        const effectiveGain = (!voiceParams.playing || voiceParams.muted) ? 0 : prevGain;
+        this.masterGain.gain.setTargetAtTime(effectiveGain, t, 0.015);
+      }
+    }, 50);
   }
 
   /**
@@ -207,3 +239,6 @@ export class AudioBridge {
     this.initialized = false;
   }
 }
+
+/** Singleton AudioBridge instance — shared across components */
+export const audioBridge = new AudioBridge();

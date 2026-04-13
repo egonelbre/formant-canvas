@@ -1,8 +1,14 @@
 <script lang="ts">
+  import type { GlottalModel } from '../types.ts';
+  import { computeLfParams, lfDerivativeSample } from '../audio/dsp/lf-model.ts';
+
   interface Props {
     openQuotient: number;
     spectralTilt: number;
     aspirationLevel: number;
+    glottalModel?: GlottalModel;
+    rd?: number;
+    f0?: number;
     width?: number;
     height?: number;
   }
@@ -10,6 +16,9 @@
     openQuotient,
     spectralTilt,
     aspirationLevel,
+    glottalModel = 'rosenberg',
+    rd = 1.0,
+    f0 = 220,
     width = 200,
     height = 80,
   }: Props = $props();
@@ -24,7 +33,7 @@
   let plotH = $derived(cHeight - MARGIN.top - MARGIN.bottom);
 
   // Generate Rosenberg pulse samples for one period
-  let pulsePath = $derived.by(() => {
+  let rosenbergPath = $derived.by(() => {
     const N = 200;
     const oq = Math.max(0.2, Math.min(0.9, openQuotient));
     const Tn = oq;
@@ -44,7 +53,6 @@
       }
 
       // Visual indication of spectral tilt: attenuate the sharp edges
-      // Higher tilt = rounder waveform (visual approximation)
       const tiltFactor = 1 - spectralTilt / 48;
       sample = sample * tiltFactor + sample * sample * (1 - tiltFactor);
 
@@ -55,7 +63,40 @@
     return points.join(' ');
   });
 
-  // Open/closed phase boundary lines
+  // Generate LF pulse samples for one period
+  let lfPath = $derived.by(() => {
+    const N = 200;
+    const params = computeLfParams(rd, f0);
+    const samples: number[] = [];
+
+    for (let i = 0; i <= N; i++) {
+      const t = (i / N) * params.T0;
+      samples.push(lfDerivativeSample(t, params));
+    }
+
+    // Normalize to [0, 1] for display
+    let minVal = Infinity;
+    let maxVal = -Infinity;
+    for (const s of samples) {
+      if (s < minVal) minVal = s;
+      if (s > maxVal) maxVal = s;
+    }
+    const range = maxVal - minVal || 1;
+
+    const points: string[] = [];
+    for (let i = 0; i <= N; i++) {
+      const normalized = (samples[i] - minVal) / range;
+      const x = MARGIN.left + (i / N) * plotW;
+      const y = MARGIN.top + (1 - normalized) * plotH;
+      points.push(`${i === 0 ? 'M' : 'L'} ${x.toFixed(1)},${y.toFixed(1)}`);
+    }
+    return points.join(' ');
+  });
+
+  // Select active path based on model
+  let pulsePath = $derived(glottalModel === 'lf' ? lfPath : rosenbergPath);
+
+  // Open/closed phase boundary lines (Rosenberg only)
   let openEnd = $derived(MARGIN.left + openQuotient * plotW);
 </script>
 
@@ -68,15 +109,17 @@
       stroke="var(--color-border)" stroke-width="0.5"
     />
 
-    <!-- Open phase region -->
-    <rect
-      x={MARGIN.left}
-      y={MARGIN.top}
-      width={openEnd - MARGIN.left}
-      height={plotH}
-      fill="var(--color-accent)"
-      opacity="0.06"
-    />
+    {#if glottalModel === 'rosenberg'}
+      <!-- Open phase region (Rosenberg) -->
+      <rect
+        x={MARGIN.left}
+        y={MARGIN.top}
+        width={openEnd - MARGIN.left}
+        height={plotH}
+        fill="var(--color-accent)"
+        opacity="0.06"
+      />
+    {/if}
 
     <!-- Pulse waveform -->
     <path
@@ -90,7 +133,8 @@
     {#if aspirationLevel > 0.01}
       {@const noiseY = MARGIN.top + plotH * 0.85}
       <line
-        x1={openEnd} y1={noiseY - 2}
+        x1={glottalModel === 'rosenberg' ? openEnd : MARGIN.left + plotW * 0.7}
+        y1={noiseY - 2}
         x2={MARGIN.left + plotW} y2={noiseY - 2}
         stroke="var(--color-text-secondary)"
         stroke-width={Math.max(0.5, aspirationLevel * 6)}
@@ -100,16 +144,18 @@
     {/if}
 
     <!-- Labels -->
-    <text
-      x={MARGIN.left + openQuotient * plotW * 0.5}
-      y={MARGIN.top + plotH - 2}
-      text-anchor="middle" font-size="8" fill="var(--color-text-secondary)" opacity="0.7"
-    >open</text>
-    <text
-      x={openEnd + (plotW - openEnd + MARGIN.left) * 0.5}
-      y={MARGIN.top + plotH - 2}
-      text-anchor="middle" font-size="8" fill="var(--color-text-secondary)" opacity="0.7"
-    >closed</text>
+    {#if glottalModel === 'rosenberg'}
+      <text
+        x={MARGIN.left + openQuotient * plotW * 0.5}
+        y={MARGIN.top + plotH - 2}
+        text-anchor="middle" font-size="8" fill="var(--color-text-secondary)" opacity="0.7"
+      >open</text>
+      <text
+        x={openEnd + (plotW - openEnd + MARGIN.left) * 0.5}
+        y={MARGIN.top + plotH - 2}
+        text-anchor="middle" font-size="8" fill="var(--color-text-secondary)" opacity="0.7"
+      >closed</text>
+    {/if}
   </svg>
 </div>
 

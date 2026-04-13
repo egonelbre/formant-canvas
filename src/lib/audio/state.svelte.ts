@@ -1,4 +1,4 @@
-import type { FormantParams, PhonationMode } from '../types.ts';
+import type { FormantParams, GlottalModel, PhonationMode } from '../types.ts';
 import type { R1Strategy, R2Strategy, StrategyMode } from '../strategies/types.ts';
 
 /**
@@ -36,6 +36,10 @@ export class VoiceParams {
   phonationMode = $state<PhonationMode>('modal');
   spectralTilt = $state(6);       // dB attenuation at 3 kHz (0-24)
 
+  // Glottal model (Phase 6)
+  glottalModel = $state<GlottalModel>('rosenberg');
+  rd = $state(1.0);               // LF Rd parameter [0.3, 2.7], default 1.0 per D-05
+
   // Transport (D-14)
   muted = $state(false);
 
@@ -63,6 +67,7 @@ export class VoiceParams {
       openQuotient: this.openQuotient, vibratoRate: this.vibratoRate,
       vibratoExtent: this.vibratoExtent, jitterAmount: this.jitterAmount,
       spectralTilt: this.spectralTilt, muted: this.muted,
+      glottalModel: this.glottalModel, rd: this.rd,
     };
   }
 
