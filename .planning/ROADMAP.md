@@ -52,8 +52,8 @@ Plans:
   3. User can enable higher-order resonances (4th-order) for sharper formant peaks and hear the increased selectivity
 **Plans**: 2 plans
 Plans:
-- [ ] 07-01-PLAN.md — Cascade envelope math (TDD), types, and VoiceParams state fields
-- [ ] 07-02-PLAN.md — AudioBridge cascade wiring, UI controls, visualization updates
+- [x] 07-01-PLAN.md — Cascade envelope math (TDD), types, and VoiceParams state fields
+- [x] 07-02-PLAN.md — AudioBridge cascade wiring, UI controls, visualization updates
 
 ### Phase 8: Extended Filter Chain
 **Goal**: Users can shape the voice with higher formants, nasality, and improved noise characteristics
@@ -95,6 +95,16 @@ Plans:
 ### Presets, Sharing, Undo/Redo
 **Requirements**: SHARE-01, SHARE-02
 **Description**: URL-encoded state sharing, 32-step undo/redo history, expanded preset system.
+
+### Phase 10: Vowel-Dependent Bandwidths
+
+**Goal:** Add per-vowel formant bandwidth data to Hillenbrand dataset and update VowelChart drag to interpolate bandwidths alongside frequencies, so different vowels produce acoustically accurate bandwidths
+**Requirements**: TBD
+**Depends on:** Phase 9
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 10 to break down)
 
 ---
 *Roadmap created: 2026-04-11*
