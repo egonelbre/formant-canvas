@@ -1,8 +1,6 @@
 <script lang="ts">
   import { audioBridge } from './lib/audio/bridge.ts';
   import { voiceParams } from './lib/audio/state.svelte.ts';
-  import type { FilterTopology } from './lib/types.ts';
-  import ChipGroup from './lib/components/ChipGroup.svelte';
   import { QWERTY_MAP } from './lib/data/qwerty-map.ts';
   import { midiToHz } from './lib/audio/dsp/pitch-utils.ts';
   import TransportBar from './lib/components/TransportBar.svelte';
@@ -112,10 +110,6 @@
     }
   }
 
-  function handleTopologySwitch(key: string) {
-    audioBridge.switchTopology(key as FilterTopology);
-  }
-
   function toggleFullscreen() {
     if (document.fullscreenElement) {
       document.exitFullscreen();
@@ -175,13 +169,21 @@
       <VibratoVisual rate={voiceParams.vibratoRate} extent={voiceParams.vibratoExtent} />
       {#if expertMode}
         <div class="expert-formant-bw">
-          <HelpDialog title="Formant Bandwidths">
+          <HelpDialog title="Formants">
             <p>
               <strong>Formants</strong> are resonance peaks created by the vocal tract -- the tube-shaped
               airway from the vocal folds to the lips. Each formant is characterized by its
               <strong>frequency</strong> (where the peak is) and its <strong>bandwidth</strong> (how
               wide the peak is).
             </p>
+            <h2>4th-order</h2>
+            <p>
+              Enabling <strong>4th-order</strong> doubles each formant filter (two filters in series
+              per formant). This creates sharper resonance peaks with steeper rolloff, increasing the
+              contrast between formant peaks and the valleys between them. The effect is a more
+              defined, focused sound.
+            </p>
+            <h2>Bandwidth</h2>
             <p>
               Bandwidth controls how sharp or broad each resonance peak is. A <strong>narrow
               bandwidth</strong> creates a prominent, ringing resonance that strongly amplifies
@@ -199,11 +201,6 @@
             </p>
           </HelpDialog>
           <h2 class="section-heading">Formants</h2>
-          <ChipGroup
-            options={[{ key: 'parallel', label: 'Parallel' }, { key: 'cascade', label: 'Cascade' }]}
-            selected={voiceParams.filterTopology}
-            onselect={handleTopologySwitch}
-          />
           <label class="toggle-row">
             <span class="toggle-label">4th-order</span>
             <input type="checkbox" checked={voiceParams.filterOrder === 4}

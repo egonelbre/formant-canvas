@@ -1,6 +1,6 @@
 import { bandwidthToQ } from './dsp/formant-utils.ts';
 import { voiceParams } from './state.svelte.ts';
-import type { GlottalModel, FilterTopology } from '../types.ts';
+import type { GlottalModel } from '../types.ts';
 import glottalProcessorUrl from './worklet/glottal-processor.ts?worker&url';
 
 /**
@@ -21,7 +21,6 @@ export class AudioBridge {
   private formantGains: GainNode[] = [];
   private sumGain: GainNode | null = null;
   private masterGain: GainNode | null = null;
-  private cascadeMakeupGain: GainNode | null = null;
   private dryGain: GainNode | null = null;
   private wetGain: GainNode | null = null;
   private convolver: ConvolverNode | null = null;
@@ -63,10 +62,6 @@ export class AudioBridge {
     // Master volume control
     this.masterGain = this.ctx.createGain();
     this.masterGain.gain.setTargetAtTime(voiceParams.masterGain, now, 0.01);
-
-    // Cascade makeup gain (compensates for amplitude loss in series topology)
-    this.cascadeMakeupGain = this.ctx.createGain();
-    this.cascadeMakeupGain.gain.setTargetAtTime(3.0, now, 0.01);
 
     // Reverb: dry/wet send from masterGain
     this.dryGain = this.ctx.createGain();
@@ -152,40 +147,11 @@ export class AudioBridge {
   }
 
   /**
-   * Wire cascade topology: worklet -> biquadA[0] -> ... -> biquadA[4] -> makeupGain -> masterGain.
-   * If 4th-order, B biquads are inserted after each A biquad.
-   */
-  private buildCascadeChain(): void {
-    if (!this.ctx || !this.workletNode || !this.cascadeMakeupGain || !this.masterGain) return;
-
-    // Disconnect all formant-related nodes
-    this.disconnectFormantNodes();
-
-    const fourthOrder = voiceParams.filterOrder === 4;
-
-    // Wire in series: worklet -> A[0] [-> B[0]] -> A[1] [-> B[1]] -> ... -> makeupGain -> masterGain
-    let prevNode: AudioNode = this.workletNode;
-    for (let i = 0; i < 5; i++) {
-      prevNode.connect(this.formantBiquadsA[i]);
-      if (fourthOrder) {
-        this.formantBiquadsA[i].connect(this.formantBiquadsB[i]);
-        prevNode = this.formantBiquadsB[i];
-      } else {
-        prevNode = this.formantBiquadsA[i];
-      }
-    }
-    prevNode.connect(this.cascadeMakeupGain);
-    this.cascadeMakeupGain.connect(this.masterGain);
-  }
-
-  /**
-   * Disconnect all formant-related nodes so topology can be rewired.
+   * Disconnect all formant-related nodes so the chain can be rewired.
    */
   private disconnectFormantNodes(): void {
     if (this.workletNode) {
-      // Disconnect worklet from all formant biquads
       try { this.workletNode.disconnect(); } catch { /* already disconnected */ }
-      // Re-connect to nothing — connections will be rebuilt
     }
     for (const f of this.formantBiquadsA) {
       try { f.disconnect(); } catch { /* ok */ }
@@ -199,45 +165,11 @@ export class AudioBridge {
     if (this.sumGain) {
       try { this.sumGain.disconnect(); } catch { /* ok */ }
     }
-    if (this.cascadeMakeupGain) {
-      try { this.cascadeMakeupGain.disconnect(); } catch { /* ok */ }
-    }
-  }
-
-  /**
-   * Switch filter topology with mute-crossfade (no clicks).
-   * Fades out over ~50ms, rewires graph, fades back in.
-   */
-  async switchTopology(newTopology: FilterTopology): Promise<void> {
-    if (!this.ctx || !this.masterGain) {
-      voiceParams.filterTopology = newTopology;
-      return;
-    }
-    const now = this.ctx.currentTime;
-    const prevGain = voiceParams.masterGain;
-
-    // Fade out over ~50ms
-    this.masterGain.gain.setTargetAtTime(0, now, 0.015);
-
-    setTimeout(() => {
-      voiceParams.filterTopology = newTopology;
-      if (newTopology === 'cascade') {
-        this.buildCascadeChain();
-      } else {
-        this.buildParallelChain();
-      }
-      this.syncParams();
-      if (this.ctx && this.masterGain) {
-        const t = this.ctx.currentTime;
-        const effectiveGain = (!voiceParams.playing || voiceParams.muted) ? 0 : prevGain;
-        this.masterGain.gain.setTargetAtTime(effectiveGain, t, 0.015);
-      }
-    }, 50);
   }
 
   /**
    * Toggle filter order with mute-crossfade (no clicks).
-   * Rebuilds current topology chain with new order.
+   * Rebuilds parallel chain with new order.
    */
   async toggleFilterOrder(newOrder: 2 | 4): Promise<void> {
     if (!this.ctx || !this.masterGain) {
@@ -251,11 +183,7 @@ export class AudioBridge {
 
     setTimeout(() => {
       voiceParams.filterOrder = newOrder;
-      if (voiceParams.filterTopology === 'cascade') {
-        this.buildCascadeChain();
-      } else {
-        this.buildParallelChain();
-      }
+      this.buildParallelChain();
       this.syncParams();
       if (this.ctx && this.masterGain) {
         const t = this.ctx.currentTime;
@@ -295,21 +223,17 @@ export class AudioBridge {
 
     // Time constant for formant frequency/Q smoothing (STRAT-03: smooth transitions)
     const formantTC = 0.06;
-    const isCascade = voiceParams.filterTopology === 'cascade';
     for (let i = 0; i < 5; i++) {
       const { freq, bw, gain } = formantData[i];
       const q = bandwidthToQ(freq, bw);
 
-      // Always update both A and B biquads (keep B in sync even when disconnected)
+      // Update both A and B biquads (keep B in sync even when disconnected)
       this.formantBiquadsA[i].frequency.setTargetAtTime(freq, now, formantTC);
       this.formantBiquadsA[i].Q.setTargetAtTime(q, now, formantTC);
       this.formantBiquadsB[i].frequency.setTargetAtTime(freq, now, formantTC);
       this.formantBiquadsB[i].Q.setTargetAtTime(q, now, formantTC);
 
-      // Per-formant gains only apply in parallel mode
-      if (!isCascade) {
-        this.formantGains[i].gain.setTargetAtTime(gain, now, 0.01);
-      }
+      this.formantGains[i].gain.setTargetAtTime(gain, now, 0.01);
     }
 
     // Mute or stopped: gain 0. Volume slider position preserved in store (D-14).
@@ -414,10 +338,6 @@ export class AudioBridge {
     }
     for (const gain of this.formantGains) {
       gain.disconnect();
-    }
-    if (this.cascadeMakeupGain) {
-      this.cascadeMakeupGain.disconnect();
-      this.cascadeMakeupGain = null;
     }
     if (this.sumGain) {
       this.sumGain.disconnect();
