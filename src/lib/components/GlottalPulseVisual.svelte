@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { GlottalModel } from '../types.ts';
   import { computeLfParams, lfDerivativeSample } from '../audio/dsp/lf-model.ts';
+  import LfDecomposition from './LfDecomposition.svelte';
 
   interface Props {
     openQuotient: number;
@@ -22,6 +23,9 @@
     width = 200,
     height = 80,
   }: Props = $props();
+
+  // Decomposition panel toggle
+  let showDecomposition = $state(false);
 
   // Measure container
   let cWidth = $state(200);
@@ -157,12 +161,47 @@
       >closed</text>
     {/if}
   </svg>
+
+  {#if glottalModel === 'lf'}
+    <button
+      class="decomp-toggle"
+      onclick={() => { showDecomposition = !showDecomposition; }}
+    >
+      <span class="decomp-chevron">{showDecomposition ? '\u25BC' : '\u25B6'}</span>
+      LF Parameters
+    </button>
+
+    {#if showDecomposition}
+      <LfDecomposition {rd} {f0} />
+    {/if}
+  {/if}
 </div>
 
 <style>
   .pulse-container {
     width: 100%;
-    height: 60px;
+    min-height: 60px;
     overflow: hidden;
+  }
+
+  .decomp-toggle {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: none;
+    border: none;
+    padding: 2px 4px;
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--color-text-secondary);
+    line-height: 1;
+  }
+
+  .decomp-toggle:hover {
+    color: var(--color-text);
+  }
+
+  .decomp-chevron {
+    font-size: 8px;
   }
 </style>
