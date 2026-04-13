@@ -12,7 +12,7 @@ Requirements for milestone v0.2: Voice Model Depth. Each maps to roadmap phases.
 - [x] **LF-01**: User can select between Rosenberg and LF glottal pulse models
 - [x] **LF-02**: LF model uses Rd parameterization (single tense-to-breathy slider)
 - [x] **LF-03**: LF model uses band-limited wavetables to avoid aliasing at high f0
-- [ ] **LF-04**: User can see Rd decomposition view showing how Rd maps to underlying LF parameters (Ra, Rk, Rg, Ta)
+- [x] **LF-04**: User can see Rd decomposition view showing how Rd maps to underlying LF parameters (Ra, Rk, Rg, Ta)
 
 ### Formant Filters
 
@@ -66,7 +66,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | LF-01 | Phase 6 | Complete |
 | LF-02 | Phase 6 | Complete |
 | LF-03 | Phase 6 | Complete |
-| LF-04 | Phase 6 | Pending |
+| LF-04 | Phase 6 | Complete |
 | FILT-01 | Phase 7 | Pending |
 | FILT-02 | Phase 7 | Pending |
 | FILT-03 | Phase 7 | Pending |

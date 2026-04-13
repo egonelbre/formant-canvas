@@ -40,7 +40,7 @@
 Plans:
 - [x] 06-01-PLAN.md — LF DSP core: Rd conversion, waveform equations, wavetable generation (TDD)
 - [x] 06-02-PLAN.md — Audio engine integration, UI controls, model switching with mute-crossfade
-- [ ] 06-03-PLAN.md — LF decomposition view with annotated waveform and R-parameter readouts
+- [x] 06-03-PLAN.md — LF decomposition view with annotated waveform and R-parameter readouts
 
 ### Phase 7: Cascade Formant Filters
 **Goal**: Users get more realistic vowel sounds through a cascade filter topology where formant amplitudes are automatically coupled
