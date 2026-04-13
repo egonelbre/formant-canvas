@@ -1,0 +1,78 @@
+---
+phase: 7
+slug: cascade-formant-filters
+status: draft
+nyquist_compliant: false
+wave_0_complete: false
+created: 2026-04-13
+---
+
+# Phase 7 — Validation Strategy
+
+> Per-phase validation contract for feedback sampling during execution.
+
+---
+
+## Test Infrastructure
+
+| Property | Value |
+|----------|-------|
+| **Framework** | vitest |
+| **Config file** | `vitest.config.ts` |
+| **Quick run command** | `npx vitest run --reporter=verbose` |
+| **Full suite command** | `npx vitest run --reporter=verbose` |
+| **Estimated runtime** | ~10 seconds |
+
+---
+
+## Sampling Rate
+
+- **After every task commit:** Run `npx vitest run --reporter=verbose`
+- **After every plan wave:** Run `npx vitest run --reporter=verbose`
+- **Before `/gsd-verify-work`:** Full suite must be green
+- **Max feedback latency:** 10 seconds
+
+---
+
+## Per-Task Verification Map
+
+| Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
+|---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
+| 07-01-01 | 01 | 1 | FILT-01 | — | N/A | unit | `npx vitest run` | ❌ W0 | ⬜ pending |
+| 07-01-02 | 01 | 1 | FILT-02 | — | N/A | unit | `npx vitest run` | ❌ W0 | ⬜ pending |
+| 07-02-01 | 02 | 2 | FILT-03 | — | N/A | unit | `npx vitest run` | ❌ W0 | ⬜ pending |
+
+*Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
+
+---
+
+## Wave 0 Requirements
+
+- [ ] Test stubs for cascade topology switching (FILT-01)
+- [ ] Test stubs for cascade amplitude coupling (FILT-02)
+- [ ] Test stubs for 4th-order resonances (FILT-03)
+
+*Existing infrastructure covers test framework setup.*
+
+---
+
+## Manual-Only Verifications
+
+| Behavior | Requirement | Why Manual | Test Instructions |
+|----------|-------------|------------|-------------------|
+| Audible difference between parallel and cascade | FILT-01 | Perceptual audio quality | Switch topology toggle, listen for timbral change |
+| Cascade amplitude coupling sounds natural | FILT-02 | Perceptual audio quality | Sweep F1, listen for natural formant amplitude changes |
+| 4th-order resonances audibly sharper | FILT-03 | Perceptual audio quality | Toggle 4th-order, listen for increased selectivity |
+
+---
+
+## Validation Sign-Off
+
+- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
+- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
+- [ ] Wave 0 covers all MISSING references
+- [ ] No watch-mode flags
+- [ ] Feedback latency < 10s
+- [ ] `nyquist_compliant: true` set in frontmatter
+
+**Approval:** pending
