@@ -434,22 +434,19 @@ export function generateLfWavetable(
 | A4 | Inline radix-2 FFT (~60 lines) is viable in AudioWorkletGlobalScope | Don't Hand-Roll | If FFT is buggy, wavetables will be wrong; alternative is pre-compute on main thread and transfer via postMessage |
 | A5 | Newton-Raphson with 10-20 iterations converges for all valid Rd in [0.3, 2.7] | Common Pitfalls / Pitfall 1 | If solver diverges, audio output will be NaN; bisection fallback handles this |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Exact Fant 1995 Rg regression formula**
+1. **Exact Fant 1995 Rg regression formula** — RESOLVED: Use simplified approximation `(0.44 * Rd + 1.073) / (1.0 + 0.46 * Rd)`. Validate aurally; the Rd-to-decomposition function is isolated and easily tuned.
    - What we know: Ra and Rk formulas are widely cited and consistent across sources. Rg is more complex and involves an implicit relationship.
    - What's unclear: The exact simplified Rg approximation that produces smooth contours across the full Rd range. Gobl 2017 notes the original equations don't produce perfectly smooth contours.
-   - Recommendation: Implement the simplified version, then validate aurally. Tune constants if needed. The Rd-to-decomposition function is isolated and easily adjusted.
 
-2. **FFT in AudioWorkletGlobalScope**
+2. **FFT in AudioWorkletGlobalScope** — RESOLVED: Implement inline radix-2 FFT (~60 lines). Fallback: pre-compute on main thread and transfer via postMessage with Transferable ArrayBuffers if startup exceeds 100ms.
    - What we know: AudioWorkletGlobalScope supports TypedArrays and basic math.
    - What's unclear: Whether a ~60-line inline FFT has any performance issues at startup in the worklet.
-   - Recommendation: Implement inline FFT. If startup is too slow (>100ms), fall back to pre-computing tables on the main thread and transferring via postMessage with Transferable ArrayBuffers.
 
-3. **Wavetable regeneration when Rd changes**
+3. **Wavetable regeneration when Rd changes** — RESOLVED: Pre-compute a grid of ~10 Rd values x 10 octaves = 100 tables at startup (~800 KB). Interpolate between two nearest Rd tables at runtime.
    - What we know: D-09 says "pre-computed at startup." But Rd changes dynamically via slider.
    - What's unclear: Whether to regenerate all 10 tables on every Rd change, or pre-compute a grid of Rd values.
-   - Recommendation: Pre-compute a grid of ~10 Rd values (0.3 to 2.7 in steps of ~0.24) x 10 octaves = 100 tables at startup. Interpolate between the two nearest Rd tables at runtime. Total memory: 100 * 2048 * 4 bytes = ~800 KB -- acceptable.
 
 ## Validation Architecture
 
