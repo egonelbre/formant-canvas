@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v0.2
 milestone_name: Voice Model Depth
 status: verifying
-stopped_at: Completed 06-01-PLAN.md
-last_updated: "2026-04-13T05:00:47.714Z"
+stopped_at: Completed 06-02-PLAN.md
+last_updated: "2026-04-13T05:08:45.028Z"
 last_activity: 2026-04-13
 progress:
   total_phases: 4
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
-  percent: 33
+  completed_plans: 2
+  percent: 67
 ---
 
 # Project State
@@ -41,6 +41,7 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - v0.1 used parallel BiquadFilterNodes for formants — Phase 7 will replace with cascade topology inside worklet
 - v0.1 used Rosenberg glottal pulse — Phase 6 adds LF as alternative
 - [Phase 06]: LF model uses simplified Fant 1995 Rg approximation and direct Ta=Ra*T0 timing
+- [Phase 06]: audioBridge exported as singleton for cross-component model switching
 
 ### Pending Todos
 
@@ -62,6 +63,6 @@ Carried forward for next milestone planning:
 
 ## Session Continuity
 
-Last session: 2026-04-13T05:00:47.712Z
-Stopped at: Completed 06-01-PLAN.md
+Last session: 2026-04-13T05:08:45.026Z
+Stopped at: Completed 06-02-PLAN.md
 Resume: `/gsd-plan-phase 6`

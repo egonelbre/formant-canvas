@@ -39,7 +39,7 @@
 **Plans**: 3 plans
 Plans:
 - [x] 06-01-PLAN.md — LF DSP core: Rd conversion, waveform equations, wavetable generation (TDD)
-- [ ] 06-02-PLAN.md — Audio engine integration, UI controls, model switching with mute-crossfade
+- [x] 06-02-PLAN.md — Audio engine integration, UI controls, model switching with mute-crossfade
 - [ ] 06-03-PLAN.md — LF decomposition view with annotated waveform and R-parameter readouts
 
 ### Phase 7: Cascade Formant Filters
